@@ -43,6 +43,24 @@ th, td {
 
 th { background: #222; }
 
+th.clickable-header {
+    padding: 0;
+}
+
+.version-button {
+    width: 100%;
+    padding: 6px;
+    border: none;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+}
+
+.version-button:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
 .green { color: #4CAF50; }
 .red { color: #f44336; }
 .highlight { background: #2e7d32; }
@@ -69,6 +87,61 @@ tr.disabled {
 tr {
     cursor: pointer;
 }
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 1000;
+}
+
+.modal-backdrop.hidden {
+    display: none;
+}
+
+.modal {
+    width: min(700px, 100%);
+    max-height: 85vh;
+    overflow-y: auto;
+    background: #1b1b1b;
+    border: 1px solid #444;
+    padding: 20px;
+}
+
+.modal h3 {
+    margin-top: 0;
+}
+
+.choice-group {
+    margin: 16px 0;
+    padding: 12px;
+    border: 1px solid #333;
+    background: #151515;
+}
+
+.choice-group label {
+    display: block;
+    margin-top: 8px;
+}
+
+.choice-group label:first-of-type {
+    margin-top: 10px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+.secondary-button {
+    background: #555;
+}
 </style>
 </head>
 <body>
@@ -94,9 +167,22 @@ tr {
 
 <div id="output"></div>
 
+<div id="versionModal" class="modal-backdrop hidden" onclick="closeVersionModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+        <h3 id="modalTitle">Open downloads</h3>
+        <div id="modalContent"></div>
+        <div class="modal-actions">
+            <button class="secondary-button" onclick="hideVersionModal()">Cancel</button>
+            <button onclick="openSelectedDownloads()">Open Downloads</button>
+        </div>
+    </div>
+</div>
+
 <script>
 let GLOBAL_MODS = [];
 let GLOBAL_VERSIONS = [];
+let GLOBAL_LOADER = "fabric";
+let ACTIVE_VERSION = null;
 
 function extractSlug(url) {
     let slug = url.trim().split("/").pop();
@@ -149,6 +235,7 @@ async function generate() {
 
     const includeSnapshots = document.getElementById("snapshots").checked;
     const loader = document.querySelector('input[name="loader"]:checked').value;
+    GLOBAL_LOADER = loader;
 
     const modGroups = parseModGroups(document.getElementById("urls").value);
 
@@ -157,6 +244,7 @@ async function generate() {
     let mods = await Promise.all(modGroups.map(async (group) => {
         const slugs = group.map(extractSlug);
         let supported = new Set();
+        let versionOptions = {};
 
         await Promise.all(slugs.map(async (slug) => {
             const versions = await fetchVersions(slug);
@@ -174,12 +262,16 @@ async function generate() {
 
                     supported.add(gv);
                     allVersionsSet.add(gv);
+                    if (!versionOptions[gv]) versionOptions[gv] = [];
+                    if (!versionOptions[gv].includes(slug)) {
+                        versionOptions[gv].push(slug);
+                    }
                 }
             }
         }));
 
         console.log(`Final versions for ${slugs.join(" OR ")}:`, [...supported]);
-        return { names: slugs, versions: supported, enabled: true };
+        return { names: slugs, versions: supported, versionOptions, enabled: true };
     }));
 
     GLOBAL_MODS = mods;
@@ -224,16 +316,27 @@ function renderModLinks(mod) {
         .join(" OR ");
 }
 
+function escapeHtml(text) {
+    return text
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+}
+
 function buildTable(mods, versions, counts, bestVersion) {
     let html = "<table><tr><th>Mod</th>";
 
     for (let v of versions) {
         let max = Math.max(...Object.values(counts));
-        let cls = counts[v] === max ? "highlight" : "";
+        let cls = counts[v] === max ? "highlight clickable-header" : "clickable-header";
         html += `
             <th class="${cls}">
-                ${v}
-                <div class="count">${counts[v]}</div>
+                <button class="version-button" onclick="openVersionPicker('${v}')">
+                    ${v}
+                    <div class="count">${counts[v]}</div>
+                </button>
             </th>`;
     }
 
@@ -280,6 +383,78 @@ function toggleMod(index) {
     console.log(`Toggled ${mod.names.join(" OR ")}:`, mod.enabled ? "ON" : "OFF");
 
     render();
+}
+
+function getDownloadUrl(slug, version) {
+    return `https://modrinth.com/mod/${slug}/versions?version=${encodeURIComponent(version)}&loader=${encodeURIComponent(GLOBAL_LOADER)}#download`;
+}
+
+function openVersionPicker(version) {
+    ACTIVE_VERSION = version;
+
+    const eligibleMods = GLOBAL_MODS.filter(mod =>
+        mod.enabled && mod.versions.has(version)
+    );
+
+    if (eligibleMods.length === 0) {
+        return;
+    }
+
+    document.getElementById("modalTitle").textContent = `Open downloads for Minecraft ${version}`;
+
+    const content = eligibleMods.map((mod, index) => {
+        const options = mod.versionOptions[version] || [];
+        const safeVersion = escapeHtml(version);
+
+        if (options.length <= 1) {
+            const slug = options[0] || mod.names[0];
+            return `
+                <div class="choice-group">
+                    <strong>${renderModLinks(mod)}</strong>
+                    <div class="count">Will open: <a href="${getDownloadUrl(slug, version)}" target="_blank">${escapeHtml(slug)}</a></div>
+                    <input type="hidden" name="mod-choice-${index}" value="${escapeHtml(slug)}">
+                </div>`;
+        }
+
+        const optionsHtml = options.map((slug, optionIndex) => `
+            <label>
+                <input type="radio" name="mod-choice-${index}" value="${escapeHtml(slug)}" ${optionIndex === 0 ? "checked" : ""}>
+                ${escapeHtml(slug)}
+            </label>
+        `).join("");
+
+        return `
+            <div class="choice-group">
+                <strong>${renderModLinks(mod)}</strong>
+                <div class="count">Choose the mod to open for Minecraft ${safeVersion}</div>
+                ${optionsHtml}
+            </div>`;
+    }).join("");
+
+    document.getElementById("modalContent").innerHTML = content;
+    document.getElementById("versionModal").classList.remove("hidden");
+}
+
+function hideVersionModal() {
+    document.getElementById("versionModal").classList.add("hidden");
+    ACTIVE_VERSION = null;
+}
+
+function closeVersionModal(event) {
+    if (event.target.id === "versionModal") {
+        hideVersionModal();
+    }
+}
+
+function openSelectedDownloads() {
+    if (!ACTIVE_VERSION) return;
+
+    const choiceInputs = document.querySelectorAll('#modalContent input[name^="mod-choice-"]:checked, #modalContent input[type="hidden"][name^="mod-choice-"]');
+    choiceInputs.forEach(input => {
+        window.open(getDownloadUrl(input.value, ACTIVE_VERSION), "_blank");
+    });
+
+    hideVersionModal();
 }
 </script>
 
