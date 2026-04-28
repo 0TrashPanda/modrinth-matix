@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Modrinth Compatibility Matrix</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #121212;
+    color: #eee;
+    padding: 20px;
+}
+
+textarea {
+    width: 100%;
+    height: 150px;
+    background: #1e1e1e;
+    color: #eee;
+    border: 1px solid #444;
+    padding: 10px;
+}
+
+button {
+    margin-top: 10px;
+    padding: 10px 15px;
+    background: #4CAF50;
+    border: none;
+    color: white;
+    cursor: pointer;
+}
+
+table {
+    margin-top: 20px;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+th, td {
+    border: 1px solid #444;
+    padding: 6px;
+    text-align: center;
+}
+
+th { background: #222; }
+
+.green { color: #4CAF50; }
+.red { color: #f44336; }
+.highlight { background: #2e7d32; }
+
+.count {
+    font-size: 0.7em;
+    color: #aaa;
+    margin-top: 2px;
+}
+
+tr.disabled {
+    opacity: 0.3;
+}
+
+.mod-name a {
+    color: #4CAF50;
+    text-decoration: none;
+}
+
+.mod-name a:hover {
+    text-decoration: underline;
+}
+
+tr {
+    cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<h2>Modrinth Compatibility Matrix</h2>
+
+<textarea id="urls" placeholder="Paste Modrinth project URLs (one per line, or separate equivalent mods with commas)"></textarea>
+
+<div>
+    <label><input type="radio" name="loader" value="fabric" checked> Fabric</label>
+    <label><input type="radio" name="loader" value="forge"> Forge</label>
+    <label><input type="radio" name="loader" value="quilt"> Quilt</label>
+    <label><input type="radio" name="loader" value="neoforge"> NeoForge</label>
+</div>
+
+<div style="margin-top:10px;">
+    <label>
+        <input type="checkbox" id="snapshots"> Include Snapshots
+    </label>
+</div>
+
+<button onclick="generate()">Generate Matrix</button>
+
+<div id="output"></div>
+
+<script>
+let GLOBAL_MODS = [];
+let GLOBAL_VERSIONS = [];
+
+function extractSlug(url) {
+    let slug = url.trim().split("/").pop();
+    console.log("Slug:", slug);
+    return slug;
+}
+
+function parseModGroups(input) {
+    return input
+        .split("\n")
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .map(line => line
+            .split(",")
+            .map(part => part.trim())
+            .filter(part => part.length > 0)
+        )
+        .filter(group => group.length > 0);
+}
+
+function isStableRelease(version) {
+    return /^\d+\.\d+(\.\d+)?$/.test(version);
+}
+
+async function fetchVersions(slug) {
+    console.group(`Fetching: ${slug}`);
+    try {
+        const res = await fetch(`https://api.modrinth.com/v2/project/${slug}/version`);
+        if (!res.ok) {
+            console.error("HTTP error:", res.status);
+            console.groupEnd();
+            return null;
+        }
+
+        const data = await res.json();
+        console.log("Total versions:", data.length);
+        console.groupEnd();
+        return data;
+
+    } catch (err) {
+        console.error("Fetch failed:", err);
+        console.groupEnd();
+        return null;
+    }
+}
+
+async function generate() {
+    console.clear();
+    console.log("=== START ===");
+
+    const includeSnapshots = document.getElementById("snapshots").checked;
+    const loader = document.querySelector('input[name="loader"]:checked').value;
+
+    const modGroups = parseModGroups(document.getElementById("urls").value);
+
+    let allVersionsSet = new Set();
+
+    let mods = await Promise.all(modGroups.map(async (group) => {
+        const slugs = group.map(extractSlug);
+        let supported = new Set();
+
+        await Promise.all(slugs.map(async (slug) => {
+            const versions = await fetchVersions(slug);
+            if (!versions) return;
+
+            for (let v of versions) {
+                if (!v.loaders.includes(loader)) continue;
+
+                for (let gv of v.game_versions) {
+
+                    if (!includeSnapshots && !isStableRelease(gv)) {
+                        console.log(`Filtered non-stable: ${gv} (${slug})`);
+                        continue;
+                    }
+
+                    supported.add(gv);
+                    allVersionsSet.add(gv);
+                }
+            }
+        }));
+
+        console.log(`Final versions for ${slugs.join(" OR ")}:`, [...supported]);
+        return { names: slugs, versions: supported, enabled: true };
+    }));
+
+    GLOBAL_MODS = mods;
+    GLOBAL_VERSIONS = Array.from(allVersionsSet).sort((a,b) =>
+        b.localeCompare(a, undefined, { numeric: true })
+    );
+
+    render();
+
+    console.log("=== DONE ===");
+}
+
+function calculateCounts(mods, versions) {
+    let counts = {};
+    versions.forEach(v => counts[v] = 0);
+
+    mods.forEach(mod => {
+        if (!mod.enabled) return;
+        mod.versions.forEach(v => {
+            if (counts[v] !== undefined) counts[v]++;
+        });
+    });
+
+    return counts;
+}
+
+function getBestVersion(versions, counts) {
+    let max = Math.max(...Object.values(counts));
+
+    // get all versions with max count
+    let best = versions.filter(v => counts[v] === max);
+
+    console.log("Best candidates:", best);
+
+    // versions are already sorted newest → oldest
+    return best[0];
+}
+
+function renderModLinks(mod) {
+    return mod.names
+        .map(name => `<a href="https://modrinth.com/mod/${name}" target="_blank" onclick="event.stopPropagation()">${name}</a>`)
+        .join(" OR ");
+}
+
+function buildTable(mods, versions, counts, bestVersion) {
+    let html = "<table><tr><th>Mod</th>";
+
+    for (let v of versions) {
+        let max = Math.max(...Object.values(counts));
+        let cls = counts[v] === max ? "highlight" : "";
+        html += `
+            <th class="${cls}">
+                ${v}
+                <div class="count">${counts[v]}</div>
+            </th>`;
+    }
+
+    html += "</tr>";
+
+    mods.forEach((mod, index) => {
+        let disabledClass = mod.enabled ? "" : "disabled";
+
+        html += `<tr class="${disabledClass}" onclick="toggleMod(${index})">`;
+
+        html += `
+            <td class="mod-name">
+                ${renderModLinks(mod)}
+            </td>`;
+
+        for (let v of versions) {
+            html += mod.versions.has(v)
+                ? `<td class="green">✅</td>`
+                : `<td class="red">❌</td>`;
+        }
+
+        html += "</tr>";
+    });
+
+    html += "</table>";
+    return html;
+}
+
+function render() {
+    let counts = calculateCounts(GLOBAL_MODS, GLOBAL_VERSIONS);
+    let bestVersion = getBestVersion(GLOBAL_VERSIONS, counts);
+
+    console.log("Counts:", counts);
+    console.log("Best version:", bestVersion);
+
+    document.getElementById("output").innerHTML =
+        buildTable(GLOBAL_MODS, GLOBAL_VERSIONS, counts, bestVersion);
+}
+
+function toggleMod(index) {
+    let mod = GLOBAL_MODS[index];
+    mod.enabled = !mod.enabled;
+
+    console.log(`Toggled ${mod.names.join(" OR ")}:`, mod.enabled ? "ON" : "OFF");
+
+    render();
+}
+</script>
+
+</body>
+</html>
