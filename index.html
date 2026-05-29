@@ -61,9 +61,72 @@ th.clickable-header {
     background: rgba(255, 255, 255, 0.08);
 }
 
-.green { color: #4CAF50; }
-.red { color: #f44336; }
-.highlight { background: #2e7d32; }
+.highlight { background: #263b2a; }
+
+.support-cell {
+    padding: 0;
+    min-width: 58px;
+    height: 36px;
+}
+
+.support-parts {
+    display: flex;
+    width: 100%;
+    min-height: 36px;
+}
+
+.support-part {
+    flex: 1 1 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    font-size: 0.72em;
+    font-weight: 700;
+    color: #f3f3f3;
+    border-left: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.support-part:first-child {
+    border-left: none;
+}
+
+.support-client { background: #48657a; }
+.support-server { background: #7a4f4f; }
+.support-both { background: #66567d; }
+.support-unknown { background: #5d5d5d; }
+.support-none {
+    color: #8b8b8b;
+    background: #171717;
+}
+
+.side-pill {
+    display: inline-block;
+    padding: 2px 6px;
+    margin-left: 6px;
+    border-radius: 3px;
+    font-size: 0.7em;
+    font-weight: 700;
+}
+
+.download-targets {
+    display: flex;
+    gap: 12px;
+    margin: 10px 0 16px;
+}
+
+.download-targets label {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.dependency-toggle {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 10px;
+}
 
 .count {
     font-size: 0.7em;
@@ -170,6 +233,14 @@ tr {
 <div id="versionModal" class="modal-backdrop hidden" onclick="closeVersionModal(event)">
     <div class="modal" onclick="event.stopPropagation()">
         <h3 id="modalTitle">Open downloads</h3>
+        <div class="download-targets">
+            <label><input type="radio" name="download-target" value="client" checked onchange="setDownloadTarget(this.value)"> Client pack</label>
+            <label><input type="radio" name="download-target" value="server" onchange="setDownloadTarget(this.value)"> Server pack</label>
+        </div>
+        <label class="dependency-toggle">
+            <input type="checkbox" id="includeDependencies">
+            Auto download required dependencies
+        </label>
         <div id="modalContent"></div>
         <div class="modal-actions">
             <button class="secondary-button" onclick="hideVersionModal()">Cancel</button>
@@ -183,25 +254,67 @@ let GLOBAL_MODS = [];
 let GLOBAL_VERSIONS = [];
 let GLOBAL_LOADER = "fabric";
 let ACTIVE_VERSION = null;
+let ACTIVE_DOWNLOAD_TARGET = "client";
 const MODRINTH_URL_PREFIX = "https://modrinth.com";
+const SIDE_TAG_PATTERN = /\[\s*(!?)([scb])\s*\]/ig;
+
+function normalizeSideTag(side) {
+    const value = side.toLowerCase();
+    if (value === "s") return "server";
+    if (value === "c") return "client";
+    if (value === "b") return "both";
+    return null;
+}
+
+function parseSideOverride(value) {
+    let fallbackSide = null;
+    let forcedSide = null;
+    let match;
+    SIDE_TAG_PATTERN.lastIndex = 0;
+
+    while ((match = SIDE_TAG_PATTERN.exec(value)) !== null) {
+        const side = normalizeSideTag(match[2]);
+        if (!side) continue;
+        if (match[1] === "!") {
+            forcedSide = side;
+        } else {
+            fallbackSide = side;
+        }
+    }
+
+    return { fallbackSide, forcedSide };
+}
+
+function stripSideTags(value) {
+    SIDE_TAG_PATTERN.lastIndex = 0;
+    return value.replace(SIDE_TAG_PATTERN, "").trim();
+}
 
 function isModrinthLookupUrl(value) {
-    if (!value.startsWith(MODRINTH_URL_PREFIX)) return false;
+    const cleanValue = stripSideTags(value);
+    if (!cleanValue.startsWith(MODRINTH_URL_PREFIX)) return false;
 
     try {
-        const parsed = new URL(value);
+        const parsed = new URL(cleanValue);
         return parsed.origin === MODRINTH_URL_PREFIX && parsed.pathname.split("/").filter(Boolean).length > 0;
     } catch {
         return false;
     }
 }
 
-function extractSlug(url) {
-    const parsed = new URL(url.trim());
+function lineStartsWithModrinthEntry(line) {
+    return isModrinthLookupUrl(line.split(",")[0].trim());
+}
+
+function parseModEntry(value) {
+    const cleanUrl = stripSideTags(value);
+    const parsed = new URL(cleanUrl);
     const pathParts = parsed.pathname.split("/").filter(Boolean);
-    let slug = pathParts[pathParts.length - 1];
-    console.log("Slug:", slug);
-    return slug;
+    const { fallbackSide, forcedSide } = parseSideOverride(value);
+    const slug = pathParts[pathParts.length - 1];
+
+    console.log("Slug:", slug, "fallback:", fallbackSide, "forced:", forcedSide);
+    return { url: cleanUrl, slug, fallbackSide, forcedSide };
 }
 
 function parseModGroups(input) {
@@ -209,17 +322,73 @@ function parseModGroups(input) {
         .split("\n")
         .map(line => line.trim())
         .filter(line => line.length > 0)
-        .filter(isModrinthLookupUrl)
+        .filter(lineStartsWithModrinthEntry)
         .map(line => line
             .split(",")
             .map(part => part.trim())
             .filter(isModrinthLookupUrl)
+            .map(parseModEntry)
         )
         .filter(group => group.length > 0);
 }
 
 function isStableRelease(version) {
     return /^\d+\.\d+(\.\d+)?$/.test(version);
+}
+
+function sideRequires(side) {
+    return side === "required";
+}
+
+function getSupportKind(project) {
+    if (!project) return "unknown";
+
+    const requiresClient = sideRequires(project.client_side);
+    const requiresServer = sideRequires(project.server_side);
+
+    if (requiresClient && requiresServer) return "both";
+    if (requiresClient) return "client";
+    if (requiresServer) return "server";
+    return "unknown";
+}
+
+function resolveSupportKind(project, entry) {
+    const modrinthSide = getSupportKind(project);
+    if (entry.forcedSide) return entry.forcedSide;
+    if (modrinthSide === "unknown" && entry.fallbackSide) return entry.fallbackSide;
+    return modrinthSide;
+}
+
+function optionMatchesTarget(option, target) {
+    if (option.side === "both") return true;
+    return option.side === target;
+}
+
+function getPrimaryFile(version) {
+    if (!version || !Array.isArray(version.files) || version.files.length === 0) return null;
+    return version.files.find(file => file.primary) || version.files[0];
+}
+
+async function fetchProject(slug) {
+    console.group(`Fetching metadata: ${slug}`);
+    try {
+        const res = await fetch(`https://api.modrinth.com/v2/project/${slug}`);
+        if (!res.ok) {
+            console.error("HTTP error:", res.status);
+            console.groupEnd();
+            return null;
+        }
+
+        const data = await res.json();
+        console.log("Sides:", data.client_side, data.server_side);
+        console.groupEnd();
+        return data;
+
+    } catch (err) {
+        console.error("Metadata fetch failed:", err);
+        console.groupEnd();
+        return null;
+    }
 }
 
 async function fetchVersions(slug) {
@@ -244,6 +413,27 @@ async function fetchVersions(slug) {
     }
 }
 
+async function fetchVersionById(versionId) {
+    console.group(`Fetching version: ${versionId}`);
+    try {
+        const res = await fetch(`https://api.modrinth.com/v2/version/${versionId}`);
+        if (!res.ok) {
+            console.error("HTTP error:", res.status);
+            console.groupEnd();
+            return null;
+        }
+
+        const data = await res.json();
+        console.groupEnd();
+        return data;
+
+    } catch (err) {
+        console.error("Version fetch failed:", err);
+        console.groupEnd();
+        return null;
+    }
+}
+
 async function generate() {
     console.clear();
     console.log("=== START ===");
@@ -257,13 +447,18 @@ async function generate() {
     let allVersionsSet = new Set();
 
     let mods = await Promise.all(modGroups.map(async (group) => {
-        const slugs = group.map(extractSlug);
+        const slugs = group.map(entry => entry.slug);
         let supported = new Set();
         let versionOptions = {};
 
-        await Promise.all(slugs.map(async (slug) => {
-            const versions = await fetchVersions(slug);
+        await Promise.all(group.map(async (entry) => {
+            const slug = entry.slug;
+            const [project, versions] = await Promise.all([
+                fetchProject(slug),
+                fetchVersions(slug)
+            ]);
             if (!versions) return;
+            const side = resolveSupportKind(project, entry);
 
             for (let v of versions) {
                 if (!v.loaders.includes(loader)) continue;
@@ -278,8 +473,14 @@ async function generate() {
                     supported.add(gv);
                     allVersionsSet.add(gv);
                     if (!versionOptions[gv]) versionOptions[gv] = [];
-                    if (!versionOptions[gv].includes(slug)) {
-                        versionOptions[gv].push(slug);
+                    if (!versionOptions[gv].some(option => option.slug === slug)) {
+                        versionOptions[gv].push({
+                            slug,
+                            side,
+                            versionId: v.id,
+                            fileUrl: getPrimaryFile(v)?.url || null,
+                            dependencies: v.dependencies || []
+                        });
                     }
                 }
             }
@@ -331,13 +532,47 @@ function renderModLinks(mod) {
         .join(" OR ");
 }
 
+function getSideLabel(side) {
+    if (side === "client") return "C";
+    if (side === "server") return "S";
+    if (side === "both") return "B";
+    return "?";
+}
+
+function getSideTitle(side) {
+    if (side === "client") return "client";
+    if (side === "server") return "server";
+    if (side === "both") return "client + server";
+    return "unknown";
+}
+
+function renderSidePill(side) {
+    return `<span class="side-pill support-${side}" title="${getSideTitle(side)}">${getSideLabel(side)}</span>`;
+}
+
 function escapeHtml(text) {
-    return text
+    return String(text ?? "")
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#39;");
+}
+
+function renderSupportCell(mod, version) {
+    const options = mod.versionOptions[version] || [];
+
+    if (options.length === 0) {
+        return `<td class="support-cell support-none">-</td>`;
+    }
+
+    const parts = options.map(option => `
+        <div class="support-part support-${option.side}" title="${escapeHtml(option.slug)}: ${getSideTitle(option.side)}">
+            ${getSideLabel(option.side)}
+        </div>
+    `).join("");
+
+    return `<td class="support-cell"><div class="support-parts">${parts}</div></td>`;
 }
 
 function buildTable(mods, versions, counts, bestVersion) {
@@ -368,9 +603,7 @@ function buildTable(mods, versions, counts, bestVersion) {
             </td>`;
 
         for (let v of versions) {
-            html += mod.versions.has(v)
-                ? `<td class="green">✅</td>`
-                : `<td class="red">❌</td>`;
+            html += renderSupportCell(mod, v);
         }
 
         html += "</tr>";
@@ -406,6 +639,7 @@ function getDownloadUrl(slug, version) {
 
 function openVersionPicker(version) {
     ACTIVE_VERSION = version;
+    ACTIVE_DOWNLOAD_TARGET = "client";
 
     const eligibleMods = GLOBAL_MODS.filter(mod =>
         mod.enabled && mod.versions.has(version)
@@ -416,38 +650,63 @@ function openVersionPicker(version) {
     }
 
     document.getElementById("modalTitle").textContent = `Open downloads for Minecraft ${version}`;
+    document.querySelector('input[name="download-target"][value="client"]').checked = true;
+    renderDownloadChoices();
+    document.getElementById("versionModal").classList.remove("hidden");
+}
 
+function setDownloadTarget(target) {
+    ACTIVE_DOWNLOAD_TARGET = target;
+    renderDownloadChoices();
+}
+
+function renderDownloadChoices() {
+    if (!ACTIVE_VERSION) return;
+
+    const eligibleMods = GLOBAL_MODS.filter(mod =>
+        mod.enabled && mod.versions.has(ACTIVE_VERSION)
+    );
+
+    const target = ACTIVE_DOWNLOAD_TARGET;
     const content = eligibleMods.map((mod, index) => {
-        const options = mod.versionOptions[version] || [];
-        const safeVersion = escapeHtml(version);
+        const allOptions = mod.versionOptions[ACTIVE_VERSION] || [];
+        const options = allOptions.filter(option => optionMatchesTarget(option, target));
+        const safeVersion = escapeHtml(ACTIVE_VERSION);
 
-        if (options.length <= 1) {
-            const slug = options[0] || mod.names[0];
+        if (options.length === 0) {
             return `
                 <div class="choice-group">
                     <strong>${renderModLinks(mod)}</strong>
-                    <div class="count">Will open: <a href="${getDownloadUrl(slug, version)}" target="_blank">${escapeHtml(slug)}</a></div>
-                    <input type="hidden" name="mod-choice-${index}" value="${escapeHtml(slug)}">
+                    <div class="count">No ${escapeHtml(target)} pack match for Minecraft ${safeVersion}. Available: ${allOptions.map(option => `${escapeHtml(option.slug)} ${renderSidePill(option.side)}`).join(" OR ") || "none"}</div>
                 </div>`;
         }
 
-        const optionsHtml = options.map((slug, optionIndex) => `
+        if (options.length === 1) {
+            const option = options[0];
+            return `
+                <div class="choice-group">
+                    <strong>${renderModLinks(mod)}</strong>
+                    <div class="count">Will open: <a href="${getDownloadUrl(option.slug, ACTIVE_VERSION)}" target="_blank">${escapeHtml(option.slug)}</a>${renderSidePill(option.side)}</div>
+                    <input type="hidden" name="mod-choice-${index}" value="${escapeHtml(option.slug)}" data-version-id="${escapeHtml(option.versionId)}">
+                </div>`;
+        }
+
+        const optionsHtml = options.map((option, optionIndex) => `
             <label>
-                <input type="radio" name="mod-choice-${index}" value="${escapeHtml(slug)}" ${optionIndex === 0 ? "checked" : ""}>
-                ${escapeHtml(slug)}
+                <input type="radio" name="mod-choice-${index}" value="${escapeHtml(option.slug)}" data-version-id="${escapeHtml(option.versionId)}" ${optionIndex === 0 ? "checked" : ""}>
+                ${escapeHtml(option.slug)} ${renderSidePill(option.side)}
             </label>
         `).join("");
 
         return `
             <div class="choice-group">
                 <strong>${renderModLinks(mod)}</strong>
-                <div class="count">Choose the mod to open for Minecraft ${safeVersion}</div>
+                <div class="count">Choose the ${escapeHtml(target)} pack mod to open for Minecraft ${safeVersion}</div>
                 ${optionsHtml}
             </div>`;
     }).join("");
 
     document.getElementById("modalContent").innerHTML = content;
-    document.getElementById("versionModal").classList.remove("hidden");
 }
 
 function hideVersionModal() {
@@ -461,13 +720,100 @@ function closeVersionModal(event) {
     }
 }
 
-function openSelectedDownloads() {
+function findSelectedOption(input) {
+    for (let mod of GLOBAL_MODS) {
+        const options = mod.versionOptions[ACTIVE_VERSION] || [];
+        const match = options.find(option =>
+            option.slug === input.value && option.versionId === input.dataset.versionId
+        );
+        if (match) return match;
+    }
+
+    return null;
+}
+
+function openDownloadTarget(url) {
+    window.open(url, "_blank");
+}
+
+function getDependencyKey(dep) {
+    if (dep.version_id) return `version:${dep.version_id}`;
+    if (dep.project_id) return `project:${dep.project_id}`;
+    if (dep.file_name) return `file:${dep.file_name}`;
+    return null;
+}
+
+async function getDependencyDownload(dep, dependencyCache) {
+    if (dep.dependency_type !== "required") return null;
+
+    const dependencyKey = getDependencyKey(dep);
+    if (dependencyKey && dependencyCache.has(dependencyKey)) {
+        return dependencyCache.get(dependencyKey);
+    }
+
+    let version = null;
+
+    if (dep.version_id) {
+        version = await fetchVersionById(dep.version_id);
+    } else if (dep.project_id) {
+        const versions = await fetchVersions(dep.project_id);
+        version = versions?.find(candidate =>
+            candidate.loaders.includes(GLOBAL_LOADER) &&
+            candidate.game_versions.includes(ACTIVE_VERSION)
+        );
+    }
+
+    const file = getPrimaryFile(version);
+    if (!file) return null;
+
+    const download = {
+        name: file.filename || dep.file_name || dep.project_id || dep.version_id,
+        url: file.url
+    };
+
+    if (dependencyKey) {
+        dependencyCache.set(dependencyKey, download);
+    }
+
+    return download;
+}
+
+async function openSelectedDownloads() {
     if (!ACTIVE_VERSION) return;
 
+    const includeDependencies = document.getElementById("includeDependencies").checked;
     const choiceInputs = document.querySelectorAll('#modalContent input[name^="mod-choice-"]:checked, #modalContent input[type="hidden"][name^="mod-choice-"]');
-    choiceInputs.forEach(input => {
-        window.open(getDownloadUrl(input.value, ACTIVE_VERSION), "_blank");
-    });
+    const selectedOptions = Array.from(choiceInputs).map(findSelectedOption).filter(Boolean);
+    const openedUrls = new Set();
+    const dependencyCache = new Map();
+    const processedDependencyKeys = new Set();
+
+    for (let option of selectedOptions) {
+        const url = includeDependencies && option.fileUrl
+            ? option.fileUrl
+            : getDownloadUrl(option.slug, ACTIVE_VERSION);
+
+        if (!openedUrls.has(url)) {
+            openedUrls.add(url);
+            openDownloadTarget(url);
+        }
+    }
+
+    if (includeDependencies) {
+        for (let option of selectedOptions) {
+            for (let dep of option.dependencies) {
+                const dependencyKey = getDependencyKey(dep);
+                if (dependencyKey && processedDependencyKeys.has(dependencyKey)) continue;
+                if (dependencyKey) processedDependencyKeys.add(dependencyKey);
+
+                const dependencyDownload = await getDependencyDownload(dep, dependencyCache);
+                if (!dependencyDownload || openedUrls.has(dependencyDownload.url)) continue;
+
+                openedUrls.add(dependencyDownload.url);
+                openDownloadTarget(dependencyDownload.url);
+            }
+        }
+    }
 
     hideVersionModal();
 }
