@@ -10,6 +10,11 @@ import type { Alternative, Entry, KnownSide, ListContent, RemovedRef, SideMode }
  *
  * Blank lines are ignored, and so are lines starting with `#` or `//`.
  *
+ * Also understood (and used by the old curated lists):
+ *   performance mods:                        <- section heading (or "## performance mods")
+ *   https://modrinth.com/mod/x, needs testing  <- plain text after a comma is a note
+ *   https://modrinth.com/mod/x [opt]         <- optional: not counted for the best version
+ *
  * In a list that follows another list, a line starting with `-` removes those
  * mods from the base list. A leading `+` is allowed for additions and ignored.
  */
@@ -79,16 +84,34 @@ export function parseAlternative(raw: string): Alternative | null {
 	return alternative;
 }
 
+const OPTIONAL_TAG = /\[\s*opt(?:ional)?\s*\]/gi;
+const LOOKS_LIKE_URL = /^(https?:\/\/|www\.)|^[\w-]+(\.[\w-]+)+\/\S*$/i;
+
+function sectionHeading(line: string): string | null {
+	if (line.startsWith('## ')) return line.slice(3).trim() || null;
+	// "performance mods:" style headings, as used in older text lists.
+	if (line.endsWith(':') && !/https?:\/\/|modrinth\.com/i.test(line)) return line.slice(0, -1).trim() || null;
+	return null;
+}
+
 export function parseText(text: string): ParseResult {
 	const entries: Entry[] = [];
 	const removals: RemovedRef[] = [];
 	const warnings: ParseWarning[] = [];
 	const seen = new Map<string, number>();
+	let section: string | undefined;
 
 	text.split(/\r?\n/).forEach((rawLine, index) => {
 		let line = rawLine.trim();
 		const lineNumber = index + 1;
-		if (!line || line.startsWith('#') || line.startsWith('//')) return;
+		if (!line) return;
+
+		const heading = sectionHeading(line);
+		if (heading) {
+			section = heading.slice(0, 80);
+			return;
+		}
+		if (line.startsWith('#') || line.startsWith('//')) return;
 
 		const prefix = line.match(/^([+-])\s*/);
 		if (prefix) line = line.slice(prefix[0].length);
@@ -104,13 +127,22 @@ export function parseText(text: string): ParseResult {
 			return;
 		}
 
+		const optional = line.search(OPTIONAL_TAG) !== -1;
+		line = line.replace(OPTIONAL_TAG, '');
+
 		const alternatives: Alternative[] = [];
+		const noteParts: string[] = [];
 		for (const part of line.split(',')) {
 			const trimmed = part.trim();
 			if (!trimmed) continue;
 			const alternative = parseAlternative(trimmed);
 			if (!alternative) {
-				warnings.push({ line: lineNumber, message: `Not a Modrinth project URL: ${trimmed}` });
+				// Plain text after a comma is a note; anything URL-like is a mistake worth flagging.
+				if (LOOKS_LIKE_URL.test(trimmed)) {
+					warnings.push({ line: lineNumber, message: `Not a Modrinth project URL: ${trimmed}` });
+				} else {
+					noteParts.push(trimmed);
+				}
 				continue;
 			}
 			const key = alternative.slug.toLowerCase();
@@ -125,7 +157,15 @@ export function parseText(text: string): ParseResult {
 			alternatives.push(alternative);
 		}
 
-		if (alternatives.length > 0) entries.push({ alternatives });
+		if (alternatives.length === 0) {
+			if (noteParts.length > 0) warnings.push({ line: lineNumber, message: `No Modrinth URL on this line: ${line}` });
+			return;
+		}
+		const entry: Entry = { alternatives };
+		if (noteParts.length > 0) entry.note = noteParts.join(', ').slice(0, 500);
+		if (optional) entry.optional = true;
+		if (section) entry.section = section;
+		entries.push(entry);
 	});
 
 	const content: ListContent = { version: 1, entries };
@@ -140,9 +180,41 @@ export function serializeAlternative(alternative: Alternative): string {
 	return alternative.sideMode === 'force' ? `${url} [!${tag}]` : `${url} [${tag}]`;
 }
 
+/** One entry as a text line, without its section. Also used to compare entries. */
+export function serializeEntry(entry: Entry): string {
+	let line = entry.alternatives.map(serializeAlternative).join(', ');
+	if (entry.optional) line += ' [opt]';
+	if (entry.note) line += `, ${entry.note}`;
+	return line;
+}
+
+/** Entries are grouped by section: unsectioned first, then sections in order of first appearance. */
+export function groupBySection(entries: Entry[]): { section: string | null; entries: Entry[] }[] {
+	const groups: { section: string | null; entries: Entry[] }[] = [{ section: null, entries: [] }];
+	for (const entry of entries) {
+		const section = entry.section ?? null;
+		let group = groups.find((candidate) => candidate.section === section);
+		if (!group) {
+			group = { section, entries: [] };
+			groups.push(group);
+		}
+		group.entries.push(entry);
+	}
+	return groups.filter((group) => group.entries.length > 0);
+}
+
 export function serializeText(content: ListContent): string {
-	const lines = content.entries.map((entry) => entry.alternatives.map(serializeAlternative).join(', '));
-	for (const removal of content.removals ?? []) {
+	const lines: string[] = [];
+	for (const group of groupBySection(content.entries)) {
+		if (group.section) {
+			if (lines.length > 0) lines.push('');
+			lines.push(`${group.section}:`);
+		}
+		for (const entry of group.entries) lines.push(serializeEntry(entry));
+	}
+	const removals = content.removals ?? [];
+	if (removals.length > 0 && lines.length > 0) lines.push('');
+	for (const removal of removals) {
 		lines.push(`- https://modrinth.com/${removal.projectType}/${removal.slug}`);
 	}
 	return lines.join('\n');

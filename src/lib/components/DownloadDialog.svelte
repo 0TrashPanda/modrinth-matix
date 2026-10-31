@@ -5,6 +5,8 @@
 	import type { Loader, ModrinthFile, Pack } from '#lib/core/types.ts';
 	import { dependencyApi } from '#lib/client/modrinth.ts';
 	import { buildZip, formatBytes, saveBlob, type ZipProgress } from '#lib/client/zip.ts';
+	import { loadLocal, saveLocal } from '#lib/client/storage.ts';
+	import { untrack } from 'svelte';
 
 	interface Props {
 		matrix: Matrix;
@@ -12,15 +14,49 @@
 		disabled: Set<string>;
 		loader: Loader;
 		name: string;
+		/** Remembers picks per list and game version in this browser. */
+		storageKey: string;
 		onclose: () => void;
 	}
 
-	let { matrix, gameVersion, disabled, loader, name, onclose }: Props = $props();
+	let { matrix, gameVersion, disabled, loader, name, storageKey, onclose }: Props = $props();
+
+	interface StoredPicks {
+		// Row key -> chosen alternative's slug, and row key -> ticked.
+		choices: Record<string, string>;
+		included: Record<string, boolean>;
+	}
+	const picksKey = untrack(() => `picks:${storageKey}:${gameVersion}`);
+	const stored = loadLocal<Partial<Record<Pack, StoredPicks>>>(picksKey, {});
 
 	let pack = $state<Pack>('client');
 	// Per-pack overrides of the defaults, keyed by row key.
 	let choices = $state<Record<Pack, Record<string, number>>>({ client: {}, server: {} });
-	let included = $state<Record<Pack, Record<string, boolean>>>({ client: {}, server: {} });
+	let included = $state<Record<Pack, Record<string, boolean>>>({
+		client: { ...stored.client?.included },
+		server: { ...stored.server?.included }
+	});
+
+	// Stored choices are slugs, so they survive alternatives being reordered.
+	for (const target of ['client', 'server'] as const) {
+		for (const item of untrack(() => packItems(matrix, gameVersion, target, disabled))) {
+			const slug = stored[target]?.choices[item.row.key];
+			const index = item.options.findIndex((option) => option.alternative.slug === slug);
+			if (index !== -1) choices[target][item.row.key] = index;
+		}
+	}
+
+	function rememberPicks() {
+		const toStore = (target: Pack): StoredPicks => {
+			const picked: Record<string, string> = {};
+			for (const item of packItems(matrix, gameVersion, target, disabled)) {
+				const index = choices[target][item.row.key];
+				if (index !== undefined && item.options[index]) picked[item.row.key] = item.options[index].alternative.slug;
+			}
+			return { choices: picked, included: { ...included[target] } };
+		};
+		saveLocal(picksKey, { client: toStore('client'), server: toStore('server') });
+	}
 	let includeDeps = $state(true);
 	let depsIncluded = $state<Record<string, boolean>>({});
 	let deps = $state<DependencyResult | null>(null);
@@ -89,6 +125,7 @@
 	const depsPending = $derived(includeDeps && selectedOptions.length > 0 && !deps && !depsError);
 
 	async function downloadZip() {
+		rememberPicks();
 		zipError = null;
 		try {
 			const blob = await buildZip(files, (progress) => (zipProgress = progress));
@@ -102,6 +139,7 @@
 	}
 
 	function openTabs() {
+		rememberPicks();
 		for (const file of files) window.open(file.url, '_blank', 'noopener');
 	}
 

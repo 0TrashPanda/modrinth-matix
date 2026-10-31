@@ -68,6 +68,41 @@ describe('parseText', () => {
 		]);
 	});
 
+	it('reads sections, notes and optional tags from the curated list format', () => {
+		const { content, warnings } = parseText(
+			[
+				'goat mods:',
+				'https://modrinth.com/mod/modmenu [!B], stupid ass mods that have modmenu as a dependency',
+				'',
+				'server mods:',
+				'https://modrinth.com/plugin/bmarker [s], markers for blue map',
+				'https://modrinth.com/mod/rrls, https://modrinth.com/mod/dark-loading-screen, not the same but conflicting https://github.com/x/y/issues/1',
+				'https://modrinth.com/mod/fastquit [opt]',
+				'manual download:',
+				'https://github.com/gnembon/fabric-carpet',
+				'needs v4.0.5 and i am too lazy: https://modrinth.com/mod/fragmentum/version/4.0.5'
+			].join('\n')
+		);
+		expect(content.entries.map((entry) => [entry.section, entry.alternatives.map((alt) => alt.slug), entry.note, entry.optional])).toEqual([
+			['goat mods', ['modmenu'], 'stupid ass mods that have modmenu as a dependency', undefined],
+			['server mods', ['bmarker'], 'markers for blue map', undefined],
+			['server mods', ['rrls', 'dark-loading-screen'], 'not the same but conflicting https://github.com/x/y/issues/1', undefined],
+			['server mods', ['fastquit'], undefined, true]
+		]);
+		expect(warnings.map((warning) => warning.line)).toEqual([9, 10]);
+	});
+
+	it('round-trips sections, notes and optional tags', () => {
+		const text = [
+			'https://modrinth.com/mod/sodium',
+			'',
+			'visual mods:',
+			'https://modrinth.com/mod/iris [opt], needs testing',
+			'https://modrinth.com/mod/continuity'
+		].join('\n');
+		expect(serializeText(parseText(text).content)).toBe(text);
+	});
+
 	it('round-trips through serializeText', () => {
 		const text = [
 			'https://modrinth.com/mod/sodium',

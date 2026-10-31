@@ -1,4 +1,4 @@
-import { serializeAlternative } from './text-format';
+import { serializeEntry as entryLine } from './text-format';
 import type { Entry, ListContent, RemovedRef } from './types';
 
 export type DiffLine =
@@ -10,7 +10,7 @@ export type DiffLine =
 	| { kind: 'removal-dropped'; removal: RemovedRef };
 
 function serializeEntry(entry: Entry): string {
-	return entry.alternatives.map(serializeAlternative).join(', ');
+	return `${entry.section ?? ''}\n${entryLine(entry)}`;
 }
 
 function slugs(entry: Entry): Set<string> {

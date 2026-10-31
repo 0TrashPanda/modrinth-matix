@@ -1,12 +1,26 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import FollowBanner from '#lib/components/FollowBanner.svelte';
 	import MatrixView from '#lib/components/MatrixView.svelte';
+	import ShareDialog from '#lib/components/ShareDialog.svelte';
 	import type { Loader } from '#lib/core/types.ts';
 	import type { PageProps } from './$types';
 
-	let { data }: PageProps = $props();
+	let { data, form }: PageProps = $props();
+
+	let shareOpen = $state(false);
 
 	const LOADER_NAMES: Record<string, string> = { fabric: 'Fabric', forge: 'Forge', neoforge: 'NeoForge', quilt: 'Quilt' };
+	const VISIBILITY: Record<string, { label: string; className: string }> = {
+		private: { label: 'Private', className: 'grey' },
+		shared: { label: 'Shared', className: 'blue' },
+		public: { label: 'Public', className: '' }
+	};
+
+	const signedIn = $derived(Boolean(page.data.user));
+	const isOwner = $derived(data.access === 'own');
+	const visibility = $derived(VISIBILITY[data.list.visibility]);
+	const sharedCount = $derived(data.sharing?.shares.length ?? 0);
 
 	function timeAgo(date: Date) {
 		const minutes = Math.round((Date.now() - date.getTime()) / 60_000);
@@ -39,9 +53,14 @@
 		<div>
 			<h1>
 				{data.list.name}
-				<span class="badge grey">{data.list.visibility === 'private' ? 'Private' : data.list.visibility}</span>
+				<span class="badge {visibility.className}">
+					{visibility.label}{data.list.visibility === 'shared' && sharedCount ? ` · ${sharedCount}` : ''}
+				</span>
 			</h1>
 			<div class="sub">
+				{#if !isOwner && data.owner}
+					by <a href="/u/{data.owner.handle}">@{data.owner.handle}</a> ·
+				{/if}
 				{LOADER_NAMES[data.list.loader] ?? data.list.loader} · {data.content.entries.length} entries · edited
 				{data.lastEditor ? `by @${data.lastEditor} ` : ''}{timeAgo(data.list.updatedAt)}
 				{#if data.followers.length > 0}· followed by {data.followers.map((f) => f.name).join(', ')}{/if}
@@ -51,9 +70,15 @@
 		<div class="row">
 			<a class="btn" href="/lists/{data.list.id}/history">History</a>
 			<a class="btn" href="/lists/{data.list.id}/export" download>Export .txt</a>
-			<a class="btn" href="/lists/new?base={data.list.id}" title="Make a list that follows this one, with your own changes">Follow</a>
+			{#if signedIn}
+				<a class="btn" href="/lists/new?base={data.list.id}" title="Make a list that follows this one, with your own changes">Follow</a>
+				<form method="POST" action="?/fork">
+					<button class="btn" title="Make your own independent copy">{isOwner ? 'Duplicate' : 'Make a copy'}</button>
+				</form>
+			{/if}
+			{#if isOwner}<button class="btn" onclick={() => (shareOpen = true)}>Share</button>{/if}
 			{#if data.access !== 'view'}<a class="btn primary" href="/lists/{data.list.id}/edit">Edit list</a>{/if}
-			{#if data.access === 'own'}
+			{#if isOwner}
 				<form method="POST" action="?/delete" onsubmit={confirmDelete}>
 					<button class="btn ghost" title="Delete list">Delete</button>
 				</form>
@@ -62,7 +87,7 @@
 	</div>
 
 	{#if data.follow}
-		<FollowBanner follow={data.follow} canEdit={data.access !== 'view'} isOwner={data.access === 'own'} />
+		<FollowBanner follow={data.follow} canEdit={data.access !== 'view'} isOwner={isOwner} />
 	{/if}
 
 	{#key matrixKey}
@@ -71,9 +96,23 @@
 			settings={{ loader: data.list.loader as Loader, includeSnapshots: data.list.includeSnapshots }}
 			storageKey={data.list.id}
 			name={data.list.name}
+			target={data.list.targetGameVersion}
+			canSetTarget={data.access !== 'view'}
 		/>
 	{/key}
 </div>
+
+{#if shareOpen && data.sharing}
+	<ShareDialog
+		name={data.list.name}
+		visibility={data.list.visibility}
+		shares={data.sharing.shares}
+		handles={data.sharing.handles}
+		url={data.sharing.url}
+		error={form && 'shareError' in form ? (form.shareError ?? null) : null}
+		onclose={() => (shareOpen = false)}
+	/>
+{/if}
 
 <style>
 	.description {
@@ -81,8 +120,5 @@
 		margin: 8px 0 0;
 		max-width: 680px;
 		font-size: 0.92rem;
-	}
-	h1 .badge {
-		text-transform: capitalize;
 	}
 </style>

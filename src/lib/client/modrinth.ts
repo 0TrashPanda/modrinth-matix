@@ -270,3 +270,33 @@ export const dependencyApi: DependencyApi = {
 	getVersions,
 	getProjectVersions: (projectId) => getProjectVersions(projectId)
 };
+
+/** Project info only (no versions), for showing names and icons in the editor. */
+export async function getProjectsMeta(slugs: string[]): Promise<Map<string, ModrinthProject>> {
+	const found = await getProjectsByKey([...new Set(slugs)], false);
+	return new Map([...found].map(([key, project]) => [key.toLowerCase(), project]));
+}
+
+export interface SearchHit {
+	project_id: string;
+	slug: string;
+	title: string;
+	description: string;
+	icon_url: string | null;
+	project_type: string;
+	downloads: number;
+	date_modified: string;
+	categories: string[];
+	versions: string[];
+	client_side: string;
+	server_side: string;
+}
+
+/** Modrinth search; `loader` limits mods to that loader. Not cached: results should be live. */
+export async function searchProjects(query: string, projectType: string, loader: string | null): Promise<SearchHit[]> {
+	const facets: string[][] = [[`project_type:${projectType}`]];
+	if (loader && projectType === 'mod') facets.push([`categories:${loader}`]);
+	const params = new URLSearchParams({ query, limit: '12', facets: JSON.stringify(facets) });
+	const result = await request<{ hits: SearchHit[] }>(`/search?${params}`);
+	return result.hits;
+}

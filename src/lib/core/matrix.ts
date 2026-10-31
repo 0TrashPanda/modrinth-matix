@@ -75,12 +75,16 @@ export class GameVersionInfo {
 	};
 }
 
+export type Channel = 'release' | 'beta' | 'alpha';
+export const ALL_CHANNELS: Channel[] = ['release', 'beta', 'alpha'];
+
 export function buildMatrix(
 	entries: Entry[],
 	data: Map<string, ProjectData>,
-	settings: ListSettings,
+	settings: ListSettings & { channels?: Channel[] },
 	gameVersionInfo: GameVersionInfo
 ): Matrix {
+	const channels = new Set<string>(settings.channels ?? ALL_CHANNELS);
 	const allVersions = new Set<string>();
 
 	const rows = entries.map((entry): MatrixRow => {
@@ -107,6 +111,7 @@ export function buildMatrix(
 
 			for (const version of versions) {
 				if (!supportsLoader(project, version, settings.loader)) continue;
+				if (!channels.has(version.version_type)) continue;
 				for (const gameVersion of version.game_versions) {
 					if (!settings.includeSnapshots && !gameVersionInfo.isRelease(gameVersion)) continue;
 					const current = best.get(gameVersion);

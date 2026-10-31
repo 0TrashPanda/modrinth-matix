@@ -101,6 +101,18 @@ describe('buildMatrix', () => {
 		expect(withSnapshots.gameVersions).toContain('26.3-snapshot-1');
 	});
 
+	it('can count only some release channels', () => {
+		const betaFree = buildMatrix(
+			entries,
+			new Map([
+				['sodium', { ok: true, project: project('sodium'), versions: [version('sodium', ['26.3'], { version_type: 'beta' }), version('sodium', ['1.21.1'])] }]
+			]),
+			{ loader: 'fabric', includeSnapshots: false, channels: ['release'] },
+			tags
+		);
+		expect(betaFree.gameVersions).toEqual(['1.21.1']);
+	});
+
 	it('picks a release over newer betas and alphas', () => {
 		const option = matrix.rows[0].cells.get('1.21.1')![0];
 		expect(option.version.version_type).toBe('release');

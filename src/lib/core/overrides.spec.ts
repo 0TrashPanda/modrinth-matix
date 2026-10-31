@@ -21,7 +21,7 @@ describe('override text format', () => {
 			{ slug: 'voxy', projectType: 'mod' }
 		]);
 		expect(serializeText(content)).toBe(
-			'https://modrinth.com/mod/axiom\n- https://modrinth.com/mod/crawl\n- https://modrinth.com/mod/voxy'
+			'https://modrinth.com/mod/axiom\n\n- https://modrinth.com/mod/crawl\n- https://modrinth.com/mod/voxy'
 		);
 	});
 

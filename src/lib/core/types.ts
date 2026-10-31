@@ -27,6 +27,12 @@ export interface Alternative {
 /** One row of the matrix: a mod, or several interchangeable mods (an OR-group). */
 export interface Entry {
 	alternatives: Alternative[];
+	/** Free text, e.g. why the mod is in the list. */
+	note?: string;
+	/** Optional mods don't count towards the best version by default. */
+	optional?: boolean;
+	/** Section heading the entry sits under, e.g. "Performance". */
+	section?: string;
 }
 
 /** A mod a following list removes from its base list. */

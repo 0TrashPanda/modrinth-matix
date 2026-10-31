@@ -71,6 +71,7 @@
 		{/if}
 
 		<div class="nav-label">Account</div>
+		<a class="nav-item" class:on={isActive(`/u/${user.handle}`)} href="/u/{user.handle}">Public profile</a>
 		<a class="nav-item" class:on={isActive('/settings')} href="/settings">Settings</a>
 		{#if user.role === 'admin'}
 			<a class="nav-item" class:on={isActive('/admin')} href="/admin">Admin</a>

@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne } from 'drizzle-orm';
 import * as v from 'valibot';
 import { diffContent, type DiffLine } from '#lib/core/diff.ts';
 import { applyOverrides, withoutRemovals } from '#lib/core/overrides.ts';
@@ -30,7 +30,10 @@ const contentSchema = v.object({
 					),
 					v.minLength(1),
 					v.maxLength(10)
-				)
+				),
+				note: v.optional(v.pipe(v.string(), v.maxLength(500))),
+				optional: v.optional(v.boolean()),
+				section: v.optional(v.pipe(v.string(), v.maxLength(80)))
 			})
 		),
 		v.maxLength(1000)
@@ -62,7 +65,8 @@ export function parseContent(json: unknown): ListContent {
 
 function accessFor(list: Modlist, user: SessionUser | null): Access | null {
 	if (user && list.ownerId === user.id) return 'own';
-	if (user) {
+	// Shares are kept when a list goes private, but only count while it's shared or public.
+	if (user && list.visibility !== 'private') {
 		const share = db
 			.select({ role: modlistShares.role })
 			.from(modlistShares)
@@ -95,7 +99,7 @@ export function listsForUser(userId: string) {
 		.from(modlistShares)
 		.innerJoin(modlists, eq(modlistShares.modlistId, modlists.id))
 		.innerJoin(users, eq(modlists.ownerId, users.id))
-		.where(eq(modlistShares.userId, userId))
+		.where(and(eq(modlistShares.userId, userId), ne(modlists.visibility, 'private')))
 		.orderBy(desc(modlists.updatedAt))
 		.all();
 	return { own, shared };
@@ -225,6 +229,11 @@ export function restoreRevision(listId: string, authorId: string, number: number
 	);
 }
 
+/** The game version the list is aiming for; the matrix opens on it. */
+export function setTargetGameVersion(listId: string, target: string | null): void {
+	db.update(modlists).set({ targetGameVersion: target }).where(eq(modlists.id, listId)).run();
+}
+
 /** Lists that follow this one are turned into normal lists with their current mods first. */
 export function deleteList(listId: string, authorId: string): void {
 	for (const follower of followersOf(listId)) {
@@ -270,7 +279,20 @@ export function followDepth(list: Modlist): number {
 	return depth;
 }
 
+/** Whether the following list's owner may still see the base. If not, the list freezes. */
+function ownerCanSeeBase(list: Modlist, base: Modlist): boolean {
+	if (base.ownerId === list.ownerId || base.visibility === 'public') return true;
+	if (base.visibility === 'private') return false;
+	const share = db
+		.select({ role: modlistShares.role })
+		.from(modlistShares)
+		.where(and(eq(modlistShares.modlistId, base.id), eq(modlistShares.userId, list.ownerId)))
+		.get();
+	return Boolean(share);
+}
+
 function usedBaseRevision(list: Modlist, base: Modlist): number {
+	if (!ownerCanSeeBase(list, base)) return list.baseRevision ?? base.currentRevision;
 	return effectiveFollowMode(list) === 'manual' && list.baseRevision ? list.baseRevision : base.currentRevision;
 }
 
@@ -303,9 +325,11 @@ export function resolveList(list: Modlist): { own: ListContent; content: ListCon
 
 	const usedRevision = usedBaseRevision(list, base);
 	const { content, warnings } = applyOverrides(effectiveContent(base, usedRevision, 1), own);
+	const available = ownerCanSeeBase(list, base);
+	if (!available) warnings.unshift(`${base.name} is no longer shared with you, so this list stays at revision ${usedRevision}`);
 	const seen = list.baseRevision ?? base.currentRevision;
 	const pending =
-		seen < base.currentRevision
+		available && seen < base.currentRevision
 			? diffContent(effectiveContent(base, seen, 1), effectiveContent(base, base.currentRevision, 1))
 			: [];
 
@@ -328,7 +352,7 @@ export function resolveList(list: Modlist): { own: ListContent; content: ListCon
 export function acknowledgeBase(listId: string): void {
 	const list = getListRow(listId);
 	const base = list?.baseListId ? getListRow(list.baseListId) : undefined;
-	if (!list || !base) return;
+	if (!list || !base || !ownerCanSeeBase(list, base)) return;
 	db.update(modlists).set({ baseRevision: base.currentRevision }).where(eq(modlists.id, listId)).run();
 	refreshEntryCounts(listId);
 }

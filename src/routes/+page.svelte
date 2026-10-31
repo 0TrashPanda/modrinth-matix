@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { loadLocal } from '#lib/client/storage.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -6,6 +8,18 @@
 	const LOADER_NAMES: Record<string, string> = { fabric: 'Fabric', forge: 'Forge', neoforge: 'NeoForge', quilt: 'Quilt' };
 	const firstName = $derived(data.user?.displayName.split(' ')[0] ?? '');
 	const formatDate = (date: Date) => date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+
+	// Best version as of the last time each list was opened in this browser.
+	let bests = $state<Record<string, { version: string; count: number; total: number }>>({});
+	onMount(() => {
+		const all = [...(data.lists?.own ?? []), ...(data.lists?.shared ?? [])];
+		bests = Object.fromEntries(
+			all.flatMap((list) => {
+				const best = loadLocal<{ version: string; count: number; total: number } | null>(`best:${list.id}`, null);
+				return best ? [[list.id, best]] : [];
+			})
+		);
+	});
 </script>
 
 {#if data.user && data.lists}
@@ -32,7 +46,7 @@
 					{#if list.follows}<div class="muted small">Follows {list.follows}</div>{/if}
 					<div class="meta">
 						<span>{LOADER_NAMES[list.loader] ?? list.loader} · {list.entryCount} entries</span>
-						<span>{formatDate(list.updatedAt)}</span>
+						{#if bests[list.id]}<span>Best <b>{bests[list.id].version}</b> ({bests[list.id].count}/{bests[list.id].total})</span>{:else}<span>{formatDate(list.updatedAt)}</span>{/if}
 					</div>
 				</a>
 			{/each}
@@ -54,7 +68,7 @@
 						<div class="muted small">by @{list.owner}</div>
 						<div class="meta">
 							<span>{LOADER_NAMES[list.loader] ?? list.loader} · {list.entryCount} entries</span>
-							<span>{formatDate(list.updatedAt)}</span>
+							{#if bests[list.id]}<span>Best <b>{bests[list.id].version}</b> ({bests[list.id].count}/{bests[list.id].total})</span>{:else}<span>{formatDate(list.updatedAt)}</span>{/if}
 						</div>
 					</a>
 				{/each}
@@ -119,6 +133,9 @@
 		justify-content: space-between;
 		font-size: 0.84rem;
 		color: var(--muted);
+	}
+	.lcard .meta b {
+		color: var(--accent);
 	}
 	.lcard.new {
 		border: 2px dashed var(--line);

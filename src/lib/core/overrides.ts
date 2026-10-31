@@ -12,12 +12,14 @@ const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
  * Builds a following list's mods from its base list and its own overrides:
  * 1. Removals drop that mod from whichever base line has it (a line left empty disappears).
  * 2. Each override line that shares a mod with a base line merges into it: new mods
- *    become extra alternatives, and a side tag replaces the base mod's side setting.
+ *    become extra alternatives, a side tag replaces the base mod's side setting, and
+ *    a note or [opt] tag replaces the base line's.
  * 3. Other override lines are appended as new lines.
  */
 export function applyOverrides(base: ListContent, overrides: ListContent): OverrideResult {
 	const warnings: string[] = [];
 	let entries: Entry[] = base.entries.map((entry) => ({
+		...entry,
 		alternatives: entry.alternatives.map((alternative) => ({ ...alternative }))
 	}));
 
@@ -37,11 +39,19 @@ export function applyOverrides(base: ListContent, overrides: ListContent): Overr
 			entry.alternatives.some((existing) => override.alternatives.some((alt) => same(alt.slug, existing.slug)))
 		);
 		if (!target) {
-			entries.push({ alternatives: override.alternatives.map((alternative) => ({ ...alternative })) });
+			entries.push({ ...override, alternatives: override.alternatives.map((alternative) => ({ ...alternative })) });
 			continue;
 		}
 
 		let changed = false;
+		if (override.note && override.note !== target.note) {
+			target.note = override.note;
+			changed = true;
+		}
+		if (override.optional && !target.optional) {
+			target.optional = true;
+			changed = true;
+		}
 		for (const alternative of override.alternatives) {
 			const existing = target.alternatives.find((alt) => same(alt.slug, alternative.slug));
 			if (!existing) {

@@ -68,7 +68,7 @@
 
 <style>
 	.follow {
-		margin-top: 18px;
+		margin: 0;
 	}
 	.follow .select {
 		width: 100%;

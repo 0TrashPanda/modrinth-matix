@@ -6,13 +6,23 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = ({ locals, url }) => {
 	if (!locals.user) redirect(302, '/login');
 	const { own, shared } = listsForUser(locals.user.id);
-	const candidates = [...own, ...shared.map((row) => row.list)]
+	const lists = [...own, ...shared.map((row) => row.list)];
+	// "Follow" on someone's public list links here with ?base=.
+	const preselected = url.searchParams.get('base');
+	if (preselected && !lists.some((list) => list.id === preselected)) {
+		try {
+			lists.push(requireList(preselected, locals.user, 'view').list);
+		} catch {
+			// Not visible to this user; just don't offer it.
+		}
+	}
+	const candidates = lists
 		.filter((list) => followDepth(list) < MAX_FOLLOW_DEPTH)
 		.map((list) => {
 			const { content } = resolveList(list);
 			return { id: list.id, name: list.name, loader: list.loader, includeSnapshots: list.includeSnapshots, content };
 		});
-	return { bases: candidates, preselectedBase: url.searchParams.get('base') };
+	return { bases: candidates, preselectedBase: preselected };
 };
 
 export const actions: Actions = {
