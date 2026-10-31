@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overall Direction Mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Silkscreen&display=swap" rel="stylesheet">
+<style>
+:root {
+    --page: #0d0d0d;
+    --page-text: #e8e8e8;
+    --page-muted: #8d8d8d;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background: var(--page);
+    color: var(--page-text);
+    font: 15px/1.5 Inter, system-ui, sans-serif;
+}
+
+.picker {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    padding: 12px 16px;
+    background: #000;
+    border-bottom: 1px solid #222;
+}
+.picker strong { margin-right: 8px; }
+.picker button {
+    font: inherit;
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid #333;
+    background: #161616;
+    color: var(--page-text);
+    cursor: pointer;
+}
+.picker button[aria-pressed="true"] { background: #e8e8e8; color: #000; border-color: #e8e8e8; }
+.picker .hint { color: var(--page-muted); font-size: 0.85rem; margin-left: auto; }
+
+.direction { display: none; }
+.direction.active { display: block; }
+
+.about {
+    max-width: 1280px;
+    margin: 20px auto 12px;
+    padding: 0 16px;
+}
+.about h2 { margin: 0 0 4px; font-size: 1.2rem; }
+.about p { margin: 0; color: var(--page-muted); max-width: 760px; }
+
+.frame {
+    max-width: 1280px;
+    margin: 0 auto 48px;
+    padding: 0 16px;
+}
+.screen {
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #2a2a2a;
+    min-height: 640px;
+}
+
+.matrix-scroll { overflow-x: auto; }
+table.matrix { border-collapse: separate; border-spacing: 0; width: 100%; }
+
+/* ============ A: Modrinth-native ============ */
+.a {
+    --bg: #16181c;
+    --surface: #26292f;
+    --raised: #2f333a;
+    --text: #e6e6e6;
+    --muted: #96a0aa;
+    --accent: #1bd96a;
+    --line: #353a42;
+    --client: #3a6ea5;
+    --server: #b5583f;
+    --both: #7c5cbf;
+    --unknown: #5b6168;
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    background: var(--bg);
+    color: var(--text);
+}
+.a aside {
+    background: #1c1e23;
+    border-right: 1px solid var(--line);
+    padding: 18px 14px;
+}
+.a .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.05rem; margin-bottom: 22px; }
+.a .brand i { width: 28px; height: 28px; border-radius: 8px; background: var(--accent); display: inline-block; }
+.a .nav-label { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; margin: 18px 8px 6px; }
+.a .nav-item { display: flex; justify-content: space-between; padding: 8px 10px; border-radius: 10px; color: var(--text); font-size: 0.92rem; }
+.a .nav-item small { color: var(--muted); }
+.a .nav-item.on { background: var(--raised); box-shadow: inset 3px 0 0 var(--accent); }
+.a .new-btn { display: block; width: 100%; margin-top: 14px; padding: 9px; border-radius: 10px; border: 1px dashed var(--line); background: none; color: var(--muted); font: inherit; }
+.a .content { padding: 24px 28px; min-width: 0; }
+.a .head { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; }
+.a h1 { margin: 0; font-size: 1.6rem; }
+.a .sub { color: var(--muted); font-size: 0.9rem; margin-top: 2px; }
+.a .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; background: rgba(27, 217, 106, 0.14); color: var(--accent); font-size: 0.78rem; font-weight: 600; margin-left: 8px; vertical-align: middle; }
+.a .actions { display: flex; gap: 8px; }
+.a .btn { padding: 9px 16px; border-radius: 12px; border: none; background: var(--raised); color: var(--text); font: inherit; font-weight: 600; }
+.a .btn.primary { background: var(--accent); color: #0b1f12; }
+.a .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 14px; }
+.a .chip { padding: 7px 14px; border-radius: 999px; background: var(--surface); color: var(--muted); font-size: 0.86rem; }
+.a .chip.on { background: var(--accent); color: #0b1f12; font-weight: 600; }
+.a .card { background: var(--surface); border-radius: 16px; padding: 6px; }
+.a table.matrix th, .a table.matrix td { padding: 6px; font-size: 0.85rem; }
+.a table.matrix th { color: var(--muted); font-weight: 600; text-align: center; }
+.a table.matrix th .n { display: block; font-size: 0.72rem; color: var(--muted); font-weight: 400; }
+.a table.matrix th.best { color: var(--accent); }
+.a table.matrix th.best .n { color: var(--accent); }
+.a table.matrix td.name { text-align: left; white-space: nowrap; padding-left: 12px; }
+.a .mod { display: flex; align-items: center; gap: 10px; }
+.a .ico { width: 26px; height: 26px; border-radius: 7px; flex: none; }
+.a .alt { color: var(--muted); font-size: 0.78rem; }
+.a .cell { display: flex; gap: 3px; height: 28px; }
+.a .cell span { flex: 1; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; color: #fff; }
+.a .cell.none span { background: transparent; border: 1px dashed var(--line); color: var(--line); }
+.a tr.off { opacity: 0.35; }
+.a tr.best-col-row td { }
+.a .legend { display: flex; gap: 14px; margin-top: 14px; color: var(--muted); font-size: 0.82rem; }
+.a .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 4px; margin-right: 6px; vertical-align: -1px; }
+
+/* ============ B: Dense tool ============ */
+.b {
+    --bg: #fbfbfa;
+    --surface: #ffffff;
+    --text: #1a1a1a;
+    --muted: #707070;
+    --accent: #0a66d8;
+    --line: #e4e4e2;
+    --client: #d7e7fb;
+    --client-t: #134a8e;
+    --server: #fbe0d7;
+    --server-t: #8e2f13;
+    --both: #e6dcf7;
+    --both-t: #4b2a8a;
+    --unknown: #ececec;
+    --unknown-t: #555;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+}
+.b .top { display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 14px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.b .logo { font-family: "JetBrains Mono", monospace; font-weight: 600; }
+.b .crumbs { color: var(--muted); }
+.b .crumbs b { color: var(--text); font-weight: 600; }
+.b .top .spacer { flex: 1; }
+.b .kbd { font-family: "JetBrains Mono", monospace; font-size: 11px; border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; color: var(--muted); }
+.b .avatar { width: 24px; height: 24px; border-radius: 50%; background: #c9a36b; }
+.b .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.b .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.b .seg span { padding: 3px 10px; border-left: 1px solid var(--line); }
+.b .seg span:first-child { border-left: none; }
+.b .seg span.on { background: var(--text); color: #fff; }
+.b .sep { width: 1px; height: 18px; background: var(--line); margin: 0 6px; }
+.b .tbtn { padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.b .tbtn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.b .body { display: grid; grid-template-columns: 1fr 300px; flex: 1; min-height: 0; }
+.b .main { min-width: 0; }
+.b table.matrix th, .b table.matrix td { border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: 0; height: 30px; }
+.b table.matrix th { font-family: "JetBrains Mono", monospace; font-weight: 600; font-size: 12px; background: #f3f3f1; position: sticky; top: 0; padding: 4px 6px; }
+.b table.matrix th .n { display: block; font-weight: 400; color: var(--muted); font-size: 11px; }
+.b table.matrix th.best { background: #e3f0ff; color: var(--accent); }
+.b table.matrix th.sel { box-shadow: inset 0 -2px 0 var(--accent); }
+.b table.matrix td.name { padding: 0 10px; white-space: nowrap; position: sticky; left: 0; background: var(--surface); }
+.b .mod { display: flex; align-items: center; gap: 8px; }
+.b .ico { width: 16px; height: 16px; border-radius: 3px; }
+.b .alt { color: var(--muted); }
+.b .cell { display: flex; height: 100%; }
+.b .cell span { flex: 1; display: flex; align-items: center; justify-content: center; font-family: "JetBrains Mono", monospace; font-size: 11px; font-weight: 600; }
+.b .cell.none span { color: #c9c9c6; }
+.b td.selcol { outline: 1px solid rgba(10, 102, 216, 0.25); outline-offset: -1px; }
+.b tr.off td { color: #b0b0b0; }
+.b tr.off .cell span { opacity: 0.35; }
+.b .panel { border-left: 1px solid var(--line); background: var(--surface); padding: 14px; }
+.b .panel h3 { margin: 0 0 2px; font-size: 14px; }
+.b .panel .muted { color: var(--muted); }
+.b .stat { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.b .panel h4 { margin: 16px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.b .blocker { padding: 6px 8px; background: #fff4f0; border: 1px solid #f6d3c6; border-radius: 6px; margin-bottom: 6px; }
+.b .blocker small { display: block; color: var(--muted); }
+.b .panel .tbtn { display: block; width: 100%; text-align: center; margin-top: 8px; padding: 7px; }
+.b .status { display: flex; gap: 16px; padding: 4px 14px; border-top: 1px solid var(--line); color: var(--muted); font-family: "JetBrains Mono", monospace; font-size: 11px; background: var(--surface); }
+
+/* ============ C: Minecraft-flavoured ============ */
+.c {
+    --bg: #1e1e1e;
+    --stone: #3b3b3b;
+    --stone-hi: #5a5a5a;
+    --stone-lo: #1a1a1a;
+    --text: #f0f0f0;
+    --muted: #a8a8a8;
+    --accent: #6fbf3a;
+    --gold: #f2c94c;
+    --client: #3d6fb6;
+    --server: #b0452f;
+    --both: #8a4fbf;
+    --unknown: #6a6a6a;
+    background:
+        linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.55)),
+        repeating-conic-gradient(#2b2b2b 0 25%, #262626 0 50%) 0 0 / 32px 32px;
+    color: var(--text);
+    padding: 22px;
+}
+.c .px { font-family: Silkscreen, monospace; letter-spacing: 0.02em; }
+.c .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-bottom: 18px; }
+.c .title { font-family: Silkscreen, monospace; font-size: 1.5rem; color: var(--gold); text-shadow: 3px 3px 0 #3f2f00; }
+.c .bar .spacer { flex: 1; }
+.c .panel {
+    background: var(--stone);
+    border: 3px solid;
+    border-color: var(--stone-hi) var(--stone-lo) var(--stone-lo) var(--stone-hi);
+    box-shadow: 0 0 0 2px #000;
+    padding: 14px;
+}
+.c .mcbtn {
+    font-family: Silkscreen, monospace;
+    font-size: 0.85rem;
+    padding: 7px 14px;
+    background: #6e6e6e;
+    color: #fff;
+    border: 2px solid;
+    border-color: #a5a5a5 #3a3a3a #3a3a3a #a5a5a5;
+    box-shadow: 0 0 0 2px #000;
+    text-shadow: 2px 2px 0 #3a3a3a;
+}
+.c .mcbtn.go { background: #4c8a2a; border-color: #7fc254 #2a4f16 #2a4f16 #7fc254; }
+.c .layout { display: grid; grid-template-columns: 220px 1fr; gap: 18px; }
+.c .slots { display: grid; gap: 6px; }
+.c .slot { display: flex; align-items: center; gap: 10px; padding: 8px; background: #8b8b8b; color: #1d1d1d; border: 2px solid; border-color: #373737 #fff #fff #373737; font-weight: 600; font-size: 0.88rem; }
+.c .slot.on { background: #c6c6c6; outline: 2px solid var(--gold); }
+.c .slot i { width: 20px; height: 20px; background: #5d8a3a; box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.3); }
+.c .section-label { font-family: Silkscreen, monospace; color: var(--muted); font-size: 0.75rem; margin: 10px 0 6px; }
+.c .listhead { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.c h1 { font-family: Silkscreen, monospace; font-size: 1.15rem; margin: 0; }
+.c .sub { color: var(--muted); font-size: 0.85rem; }
+.c .opts { display: flex; gap: 8px; flex-wrap: wrap; }
+.c .opt { font-family: Silkscreen, monospace; font-size: 0.75rem; padding: 4px 10px; background: var(--stone-lo); border: 2px solid #000; color: var(--muted); }
+.c .opt.on { color: var(--accent); border-color: var(--accent); }
+.c table.matrix th, .c table.matrix td { padding: 3px; }
+.c table.matrix th { font-family: Silkscreen, monospace; font-size: 0.72rem; color: var(--muted); font-weight: 400; }
+.c table.matrix th .n { display: block; color: var(--text); font-size: 0.85rem; }
+.c table.matrix th.best { color: var(--gold); }
+.c table.matrix th.best .n { color: var(--gold); text-shadow: 2px 2px 0 #3f2f00; }
+.c table.matrix td.name { white-space: nowrap; padding-right: 12px; font-size: 0.88rem; }
+.c .mod { display: flex; align-items: center; gap: 8px; }
+.c .ico { width: 22px; height: 22px; box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.35), 0 0 0 2px #000; flex: none; }
+.c .alt { color: var(--muted); font-size: 0.78rem; }
+.c .cell { display: flex; gap: 2px; height: 28px; }
+.c .cell span { flex: 1; display: flex; align-items: center; justify-content: center; font-family: Silkscreen, monospace; font-size: 0.75rem; color: #fff; text-shadow: 1px 1px 0 #000; box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.35), inset 3px 3px 0 rgba(255, 255, 255, 0.18); }
+.c .cell.none span { background: var(--stone-lo); box-shadow: inset 2px 2px 0 #000; color: #444; text-shadow: none; }
+.c tr.off { opacity: 0.35; }
+.c .tooltip { margin-top: 14px; display: inline-block; padding: 8px 12px; background: #100010; border: 2px solid #2a0a5e; box-shadow: 0 0 0 2px #100010; font-size: 0.85rem; }
+.c .tooltip b { color: var(--gold); font-family: Silkscreen, monospace; font-weight: 400; }
+
+@media (max-width: 800px) {
+    .a, .c .layout, .b .body { grid-template-columns: 1fr; }
+    .a aside, .c .layout > .panel:first-child, .b .panel { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="picker">
+    <strong>Overall direction</strong>
+    <button data-go="a" aria-pressed="true">A · Modrinth-native</button>
+    <button data-go="b" aria-pressed="false">B · Dense tool</button>
+    <button data-go="c" aria-pressed="false">C · Minecraft-flavoured</button>
+    <span class="hint">The same list in each. Mixing parts of directions is fine.</span>
+</div>
+
+<!-- A -->
+<section class="direction active" id="dir-a">
+    <div class="about">
+        <h2>A · Modrinth-native</h2>
+        <p>Dark, rounded and friendly, with a green accent close to Modrinth's own style, so it feels like part of the same ecosystem. It has a sidebar for lists and a big readable matrix inside a card. It's the most approachable for friends who aren't technical.</p>
+    </div>
+    <div class="frame">
+        <div class="screen a">
+            <aside>
+                <div class="brand"><i></i> Modlist Matrix</div>
+                <div class="nav-label">My lists</div>
+                <div class="nav-item on">Survival 1.21 <small>10</small></div>
+                <div class="nav-item">Create SMP <small>34</small></div>
+                <div class="nav-item">Performance only <small>7</small></div>
+                <div class="nav-label">Shared with me</div>
+                <div class="nav-item">Friends server <small>52</small></div>
+                <div class="nav-item">Skyblock pack <small>18</small></div>
+                <button class="new-btn">+ New list</button>
+            </aside>
+            <div class="content">
+                <div class="head">
+                    <div>
+                        <h1>Survival 1.21 <span class="badge">Shared · 3</span></h1>
+                        <div class="sub">Fabric · Saved 2 min ago · Best version: 1.21.1 (9/9)</div>
+                    </div>
+                    <div class="actions">
+                        <button class="btn">Edit list</button>
+                        <button class="btn">Share</button>
+                        <button class="btn primary">Download 1.21.1</button>
+                    </div>
+                </div>
+                <div class="toolbar">
+                    <span class="chip on">Fabric</span><span class="chip">Forge</span><span class="chip">NeoForge</span><span class="chip">Quilt</span>
+                    <span class="chip">Releases only ▾</span><span class="chip">Hide unsupported</span>
+                </div>
+                <div class="card"><div class="matrix-scroll"><table class="matrix" data-variant="a"></table></div></div>
+                <div class="legend">
+                    <span><i style="background:var(--client)"></i>Client</span>
+                    <span><i style="background:var(--server)"></i>Server</span>
+                    <span><i style="background:var(--both)"></i>Both</span>
+                    <span><i style="background:var(--unknown)"></i>Unknown</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- B -->
+<section class="direction" id="dir-b">
+    <div class="about">
+        <h2>B · Dense tool</h2>
+        <p>A light, compact, spreadsheet-like layout inspired by tools like Linear or Airtable. It fits the most rows and versions on screen. Clicking a version column opens an inspector on the right with blockers and the download button. Keyboard-first, with a status bar at the bottom. Best for big lists and power use. (Dark mode would be included.)</p>
+    </div>
+    <div class="frame">
+        <div class="screen b">
+            <div class="top">
+                <span class="logo">modlist/matrix</span>
+                <span class="crumbs">jonah / <b>survival-1.21</b></span>
+                <span class="spacer"></span>
+                <span class="kbd">/</span><span class="crumbs">Search mods</span>
+                <span class="avatar"></span>
+            </div>
+            <div class="tools">
+                <span class="seg"><span class="on">Fabric</span><span>Forge</span><span>NeoForge</span><span>Quilt</span></span>
+                <span class="sep"></span>
+                <span class="seg"><span class="on">Release</span><span>+Beta</span><span>+Alpha</span></span>
+                <span class="tbtn">☐ Snapshots</span>
+                <span class="tbtn">Range: 1.20 → latest</span>
+                <span class="sep"></span>
+                <span class="tbtn">+ Add mod</span>
+                <span class="tbtn">Share</span>
+                <span class="tbtn">History</span>
+            </div>
+            <div class="body">
+                <div class="main"><div class="matrix-scroll"><table class="matrix" data-variant="b"></table></div></div>
+                <div class="panel">
+                    <h3>Minecraft 1.21.1</h3>
+                    <div class="muted">Selected column</div>
+                    <div class="stat"><span>Supported</span><b>9 / 9 enabled</b></div>
+                    <div class="stat"><span>Client pack</span><b>8 files + 2 deps</b></div>
+                    <div class="stat"><span>Server pack</span><b>5 files + 1 dep</b></div>
+                    <h4>Blocks 1.21.4</h4>
+                    <div class="blocker">Simple Voice Chat<small>Latest support: 1.21.3</small></div>
+                    <div class="blocker">Distant Horizons<small>Latest: 1.21.1 · alt Bobby ✓</small></div>
+                    <span class="tbtn primary">Download client.zip</span>
+                    <span class="tbtn">Download server.zip</span>
+                    <span class="tbtn">Export .mrpack</span>
+                </div>
+            </div>
+            <div class="status">
+                <span>10 entries · 1 disabled</span><span>cache: 4 min old</span><span>saved ✓</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- C -->
+<section class="direction" id="dir-c">
+    <div class="about">
+        <h2>C · Minecraft-flavoured</h2>
+        <p>The game's own visual style: bevelled stone panels, inventory-slot list picker, pixel font for headings and buttons, and a tooltip styled like an item tooltip. The most fun and the most distinctive, but harder to keep readable on big lists. Body text stays in a normal font.</p>
+    </div>
+    <div class="frame">
+        <div class="screen c">
+            <div class="bar">
+                <span class="title">Modlist Matrix</span>
+                <span class="spacer"></span>
+                <span class="mcbtn">Share</span>
+                <span class="mcbtn">Edit</span>
+                <span class="mcbtn go">Download 1.21.1</span>
+            </div>
+            <div class="layout">
+                <div class="panel">
+                    <div class="section-label">My lists</div>
+                    <div class="slots">
+                        <div class="slot on"><i></i>Survival 1.21</div>
+                        <div class="slot"><i style="background:#b07a3a"></i>Create SMP</div>
+                        <div class="slot"><i style="background:#3a7ab0"></i>Performance</div>
+                    </div>
+                    <div class="section-label">Shared with me</div>
+                    <div class="slots">
+                        <div class="slot"><i style="background:#a03a3a"></i>Friends server</div>
+                    </div>
+                </div>
+                <div class="panel">
+                    <div class="listhead">
+                        <div>
+                            <h1>Survival 1.21</h1>
+                            <div class="sub">Fabric · shared with 3 · best: 1.21.1</div>
+                        </div>
+                        <div class="opts">
+                            <span class="opt on">Fabric</span><span class="opt">Forge</span><span class="opt">NeoForge</span><span class="opt">Quilt</span><span class="opt">Snapshots: off</span>
+                        </div>
+                    </div>
+                    <div class="matrix-scroll"><table class="matrix" data-variant="c"></table></div>
+                    <div class="tooltip"><b>Iris Shaders</b><br>1.8.1 for 1.21.1 · Release<br><span style="color:#5555ff">Client side</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+const VERSIONS = ["1.21.4", "1.21.3", "1.21.1", "1.21", "1.20.6", "1.20.4", "1.20.1"];
+
+// side per alternative: c, s, b, u; versions list per alternative
+const ROWS = [
+    { alts: [{ name: "Sodium", side: "c", color: "#4caf8a", v: VERSIONS }] },
+    { alts: [{ name: "Fabric API", side: "b", color: "#c9a36b", v: VERSIONS }] },
+    { alts: [{ name: "Lithium", side: "b", color: "#6bc96f", v: VERSIONS }] },
+    { alts: [{ name: "Iris Shaders", side: "c", color: "#8a6bc9", v: ["1.21.4", "1.21.3", "1.21.1", "1.21", "1.20.4", "1.20.1"] }] },
+    { alts: [{ name: "Mod Menu", side: "c", color: "#6b9ec9", v: VERSIONS }] },
+    { alts: [
+        { name: "Distant Horizons", side: "c", color: "#3a6fb6", v: ["1.21.1", "1.21", "1.20.6", "1.20.4", "1.20.1"] },
+        { name: "Bobby", side: "c", color: "#b6853a", v: VERSIONS }
+    ] },
+    { alts: [{ name: "Simple Voice Chat", side: "b", color: "#c96b6b", v: ["1.21.3", "1.21.1", "1.21", "1.20.6", "1.20.4", "1.20.1"] }] },
+    { alts: [{ name: "spark", side: "s", color: "#e6c84c", v: VERSIONS }] },
+    { alts: [{ name: "Chunky", side: "u", color: "#7a7a7a", v: ["1.21.4", "1.21.1", "1.21", "1.20.6", "1.20.4", "1.20.1"] }] },
+    { alts: [{ name: "Xaero's Minimap", side: "c", color: "#5a8a5a", v: VERSIONS }], off: true }
+];
+
+const SIDE_VAR = { c: "client", s: "server", b: "both", u: "unknown" };
+
+function counts() {
+    const out = {};
+    for (const v of VERSIONS) {
+        out[v] = ROWS.filter(r => !r.off && r.alts.some(a => a.v.includes(v))).length;
+    }
+    return out;
+}
+
+function cellHtml(row, v, variant) {
+    const alts = row.alts.filter(a => a.v.includes(v));
+    if (alts.length === 0) return `<div class="cell none"><span>${variant === "b" ? "·" : "–"}</span></div>`;
+    const parts = alts.map(a => {
+        const key = SIDE_VAR[a.side];
+        const style = variant === "b"
+            ? `background:var(--${key});color:var(--${key}-t)`
+            : `background:var(--${key})`;
+        return `<span style="${style}" title="${a.name}">${a.side.toUpperCase()}</span>`;
+    }).join("");
+    return `<div class="cell">${parts}</div>`;
+}
+
+function build(table) {
+    const variant = table.dataset.variant;
+    const c = counts();
+    const max = Math.max(...Object.values(c));
+    let html = `<tr><th style="text-align:left;padding-left:12px">Mod</th>`;
+    for (const v of VERSIONS) {
+        const cls = [c[v] === max ? "best" : "", variant === "b" && v === "1.21.1" ? "sel" : ""].join(" ");
+        html += `<th class="${cls}">${v}<span class="n">${c[v]}${variant === "b" ? "/9" : ""}</span></th>`;
+    }
+    html += `</tr>`;
+    for (const row of ROWS) {
+        const first = row.alts[0];
+        const alt = row.alts.length > 1 ? `<span class="alt">or ${row.alts.slice(1).map(a => a.name).join(", ")}</span>` : "";
+        html += `<tr class="${row.off ? "off" : ""}"><td class="name"><div class="mod"><span class="ico" style="background:${first.color}"></span><span>${first.name} ${alt}</span></div></td>`;
+        for (const v of VERSIONS) {
+            const sel = variant === "b" && v === "1.21.1" ? "selcol" : "";
+            html += `<td class="${sel}">${cellHtml(row, v, variant)}</td>`;
+        }
+        html += `</tr>`;
+    }
+    table.innerHTML = html;
+}
+
+document.querySelectorAll("table.matrix").forEach(build);
+
+document.querySelectorAll(".picker button").forEach(btn => {
+    btn.addEventListener("click", () => {
+        document.querySelectorAll(".picker button").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
+        document.querySelectorAll(".direction").forEach(d => d.classList.toggle("active", d.id === `dir-${btn.dataset.go}`));
+    });
+});
+</script>
+</body>
+</html>

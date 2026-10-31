@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page Mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bg: #16181c;
+    --side: #1c1e23;
+    --surface: #26292f;
+    --raised: #2f333a;
+    --hover: #383d45;
+    --text: #e6e6e6;
+    --muted: #96a0aa;
+    --faint: #6b737c;
+    --accent: #1bd96a;
+    --accent-ink: #0b1f12;
+    --accent-soft: rgba(27, 217, 106, 0.14);
+    --line: #353a42;
+    --danger: #ff6b6b;
+    --danger-soft: rgba(255, 107, 107, 0.12);
+    --warn: #f2b84b;
+    --warn-soft: rgba(242, 184, 75, 0.13);
+    --client: #3a6ea5;
+    --server: #b5583f;
+    --both: #7c5cbf;
+    --unknown: #5b6168;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background: #0d0d0d;
+    color: var(--text);
+    font: 15px/1.5 Inter, system-ui, sans-serif;
+}
+
+button { font: inherit; color: inherit; }
+
+/* ---------- page picker ---------- */
+.picker {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    padding: 10px 16px;
+    background: #000;
+    border-bottom: 1px solid #222;
+}
+.picker strong { margin-right: 8px; }
+.picker button {
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid #333;
+    background: #161616;
+    cursor: pointer;
+    font-size: 0.88rem;
+}
+.picker button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+
+.page { display: none; }
+.page.active { display: block; }
+
+.note {
+    max-width: 1280px;
+    margin: 18px auto 10px;
+    padding: 0 16px;
+    color: #9a9a9a;
+    font-size: 0.9rem;
+}
+.note b { color: #e8e8e8; }
+
+.frame { max-width: 1280px; margin: 0 auto 48px; padding: 0 16px; }
+.screen {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #2a2a2a;
+    min-height: 700px;
+    background: var(--bg);
+}
+
+/* ---------- shell ---------- */
+.shell { display: grid; grid-template-columns: 240px 1fr; min-height: 700px; }
+.sidebar {
+    background: var(--side);
+    border-right: 1px solid var(--line);
+    padding: 18px 14px;
+    display: flex;
+    flex-direction: column;
+}
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.05rem; margin-bottom: 18px; }
+.brand i { width: 28px; height: 28px; border-radius: 8px; background: var(--accent); display: inline-block; }
+.search-box { display: flex; justify-content: space-between; padding: 8px 10px; border-radius: 10px; background: var(--surface); color: var(--faint); font-size: 0.88rem; }
+.search-box kbd { font: inherit; font-size: 0.75rem; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
+.nav-label { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; margin: 18px 8px 6px; }
+.nav-item { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 10px; font-size: 0.92rem; }
+.nav-item small { color: var(--muted); }
+.nav-item.on { background: var(--raised); box-shadow: inset 3px 0 0 var(--accent); }
+.nav-item .dot { width: 8px; height: 8px; border-radius: 3px; flex: none; }
+.nav-item span:first-child { display: flex; align-items: center; gap: 8px; }
+.new-btn { display: block; width: 100%; margin-top: 12px; padding: 8px; border-radius: 10px; border: 1px dashed var(--line); background: none; color: var(--muted); }
+.side-foot { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 10px; font-size: 0.88rem; }
+.side-foot .avatar { width: 30px; height: 30px; }
+.side-foot small { display: block; color: var(--muted); }
+
+.content { padding: 24px 28px; min-width: 0; }
+
+/* ---------- atoms ---------- */
+h1 { margin: 0; font-size: 1.6rem; }
+h2 { margin: 0 0 12px; font-size: 1.1rem; }
+.sub { color: var(--muted); font-size: 0.9rem; margin-top: 2px; }
+.muted { color: var(--muted); }
+.head { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.badge { display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 0.76rem; font-weight: 600; vertical-align: middle; }
+.badge.grey { background: var(--raised); color: var(--muted); }
+.badge.blue { background: rgba(58, 110, 165, 0.25); color: #8db8e6; }
+.badge.warn { background: var(--warn-soft); color: var(--warn); }
+.badge.danger { background: var(--danger-soft); color: var(--danger); }
+
+.btn { padding: 9px 16px; border-radius: 12px; border: none; background: var(--raised); font-weight: 600; cursor: default; white-space: nowrap; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); }
+.btn.ghost { background: none; color: var(--muted); }
+.btn.danger { background: var(--danger-soft); color: var(--danger); }
+.btn.sm { padding: 5px 11px; border-radius: 9px; font-size: 0.85rem; }
+
+.chip { display: inline-block; padding: 6px 13px; border-radius: 999px; background: var(--surface); color: var(--muted); font-size: 0.85rem; }
+.chip.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+
+.card { background: var(--surface); border-radius: 16px; padding: 16px; }
+.card.tight { padding: 6px; }
+
+.input { padding: 9px 12px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); color: var(--muted); font-size: 0.9rem; }
+.select { padding: 6px 10px; border-radius: 9px; background: var(--raised); font-size: 0.84rem; white-space: nowrap; }
+.select::after { content: " ▾"; color: var(--muted); }
+
+.ico { width: 26px; height: 26px; border-radius: 7px; flex: none; display: inline-block; }
+.ico.lg { width: 40px; height: 40px; border-radius: 10px; }
+.avatar { width: 26px; height: 26px; border-radius: 50%; display: inline-block; flex: none; }
+
+.toggle { width: 34px; height: 20px; border-radius: 999px; background: var(--raised); position: relative; flex: none; display: inline-block; }
+.toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); }
+.toggle.on { background: var(--accent); }
+.toggle.on::after { left: 17px; background: var(--accent-ink); }
+
+.check { width: 18px; height: 18px; border-radius: 5px; border: 2px solid var(--line); display: inline-block; flex: none; }
+.check.on { background: var(--accent); border-color: var(--accent); position: relative; }
+.check.on::after { content: "✓"; position: absolute; inset: -3px 0 0 2px; color: var(--accent-ink); font-size: 12px; font-weight: 800; }
+
+table.list { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+table.list th { text-align: left; color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+table.list td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+table.list tr:last-child td { border-bottom: none; }
+
+.side-pill { display: inline-block; min-width: 22px; text-align: center; padding: 1px 6px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; color: #fff; }
+
+/* ---------- matrix ---------- */
+.matrix-scroll { overflow-x: auto; }
+table.matrix { border-collapse: separate; border-spacing: 0; width: 100%; }
+table.matrix th, table.matrix td { padding: 5px; font-size: 0.85rem; }
+table.matrix th { color: var(--muted); font-weight: 600; text-align: center; position: sticky; top: 0; background: var(--surface); }
+table.matrix th .n { display: block; font-size: 0.72rem; font-weight: 400; }
+table.matrix th.best { color: var(--accent); }
+table.matrix th.sel { background: var(--raised); border-radius: 10px 10px 0 0; color: var(--text); }
+table.matrix td.selcol { background: var(--raised); }
+table.matrix tr:last-child td.selcol { border-radius: 0 0 10px 10px; }
+table.matrix td.name { text-align: left; white-space: nowrap; padding-left: 10px; position: sticky; left: 0; background: var(--surface); }
+.mod { display: flex; align-items: center; gap: 10px; }
+.alt { color: var(--muted); font-size: 0.78rem; }
+.cell { display: flex; gap: 3px; height: 28px; min-width: 52px; }
+.cell span { flex: 1; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; color: #fff; }
+.cell span.beta { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.18) 0 4px, transparent 4px 8px); }
+.cell.none span { border: 1px dashed var(--line); color: var(--line); }
+tr.off { opacity: 0.35; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; color: var(--muted); font-size: 0.82rem; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 4px; margin-right: 6px; vertical-align: -1px; }
+
+/* ---------- list view ---------- */
+.list-layout { display: grid; grid-template-columns: 1fr 300px; gap: 18px; margin-top: 16px; }
+.drawer { background: var(--surface); border-radius: 16px; padding: 18px; align-self: start; }
+.drawer h3 { margin: 0; font-size: 1.15rem; }
+.stat { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
+.drawer h4 { margin: 18px 0 8px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.blocker { display: flex; gap: 10px; align-items: center; padding: 9px 10px; border-radius: 10px; background: var(--bg); margin-bottom: 6px; font-size: 0.88rem; }
+.blocker small { display: block; color: var(--muted); font-size: 0.78rem; }
+.drawer .btn { display: block; width: 100%; margin-top: 8px; text-align: center; }
+
+/* ---------- dashboard ---------- */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.lcard { background: var(--surface); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.lcard .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.lcard h3 { margin: 0; font-size: 1.02rem; }
+.mosaic { display: flex; }
+.mosaic .ico { width: 24px; height: 24px; margin-right: -6px; border: 2px solid var(--surface); }
+.lcard .meta { display: flex; justify-content: space-between; font-size: 0.84rem; color: var(--muted); }
+.lcard .meta b { color: var(--accent); }
+.lcard.new { border: 2px dashed var(--line); background: none; align-items: center; justify-content: center; color: var(--muted); min-height: 150px; }
+.section-title { display: flex; justify-content: space-between; align-items: center; margin: 28px 0 12px; }
+.section-title h2 { margin: 0; }
+.updates { display: flex; flex-direction: column; gap: 6px; }
+.update { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--surface); border-radius: 12px; font-size: 0.9rem; }
+.update .grow { flex: 1; }
+
+/* ---------- editor ---------- */
+.editor-layout { display: grid; grid-template-columns: 1fr 340px; gap: 18px; margin-top: 16px; }
+.sec-head { display: flex; justify-content: space-between; align-items: center; margin: 4px 4px 8px; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+.entry { display: grid; grid-template-columns: 18px 1fr auto; gap: 12px; align-items: start; padding: 12px; background: var(--surface); border-radius: 14px; margin-bottom: 8px; }
+.entry.drag { box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 0 2px var(--accent); transform: rotate(-0.4deg); }
+.entry.drop-hint { border: 2px dashed var(--accent); background: var(--accent-soft); height: 20px; padding: 0; }
+.handle { color: var(--faint); cursor: grab; line-height: 26px; letter-spacing: -2px; }
+.alts { display: flex; flex-direction: column; gap: 8px; }
+.alt-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.alt-row .name { font-weight: 600; }
+.or { color: var(--faint); font-size: 0.72rem; font-weight: 700; margin-left: 36px; }
+.entry-note { margin-left: 36px; color: var(--muted); font-size: 0.82rem; font-style: italic; }
+.entry-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; font-size: 0.8rem; color: var(--muted); }
+.entry-actions .row { gap: 6px; }
+.warn-line { margin-left: 36px; color: var(--warn); font-size: 0.82rem; }
+.search-panel { background: var(--surface); border-radius: 16px; padding: 14px; align-self: start; }
+.search-panel .input { display: block; color: var(--text); margin-bottom: 10px; }
+.result { display: grid; grid-template-columns: 40px 1fr; gap: 10px; padding: 10px 6px; border-bottom: 1px solid var(--line); }
+.result:last-child { border-bottom: none; }
+.result .t { font-weight: 600; font-size: 0.92rem; }
+.result p { margin: 2px 0 6px; color: var(--muted); font-size: 0.8rem; }
+.result .row { gap: 6px; }
+.platform { font-size: 0.7rem; font-weight: 700; padding: 1px 6px; border-radius: 5px; background: var(--accent-soft); color: var(--accent); }
+.platform.cf { background: rgba(241, 100, 54, 0.15); color: #f58a5c; }
+.added { color: var(--accent); font-size: 0.82rem; font-weight: 600; }
+
+/* ---------- modal ---------- */
+.backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 48px 16px;
+    z-index: 5;
+}
+.modal { width: min(760px, 100%); background: var(--side); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,0.6); }
+.modal.narrow { width: min(560px, 100%); }
+.modal-head { padding: 18px 22px 0; display: flex; justify-content: space-between; align-items: flex-start; }
+.modal-head h2 { margin: 0; font-size: 1.25rem; }
+.modal-body { padding: 16px 22px; }
+.modal-foot { padding: 14px 22px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--bg); }
+.x { color: var(--muted); font-size: 1.2rem; }
+.tabs { display: flex; gap: 4px; padding: 4px; background: var(--bg); border-radius: 12px; width: fit-content; }
+.tabs span { padding: 6px 16px; border-radius: 9px; font-size: 0.88rem; color: var(--muted); }
+.tabs span.on { background: var(--raised); color: var(--text); font-weight: 600; }
+.dep td:first-child { padding-left: 28px; }
+.dep .muted { font-size: 0.82rem; }
+.progress { height: 8px; border-radius: 999px; background: var(--raised); overflow: hidden; }
+.progress i { display: block; height: 100%; width: 62%; background: var(--accent); border-radius: 999px; }
+
+.vis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.vis div { padding: 12px; border-radius: 12px; background: var(--surface); border: 2px solid transparent; font-size: 0.85rem; }
+.vis div b { display: block; font-size: 0.95rem; margin-bottom: 2px; }
+.vis div span { color: var(--muted); }
+.vis div.on { border-color: var(--accent); background: var(--accent-soft); }
+.person { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.person .grow { flex: 1; }
+.person small { display: block; color: var(--muted); }
+.link-box { display: flex; gap: 8px; }
+.link-box .input { flex: 1; color: var(--text); }
+
+/* ---------- history ---------- */
+.history-layout { display: grid; grid-template-columns: 300px 1fr; gap: 18px; margin-top: 16px; }
+.rev { display: flex; gap: 12px; padding: 12px; border-radius: 12px; font-size: 0.88rem; position: relative; }
+.rev.on { background: var(--surface); box-shadow: inset 3px 0 0 var(--accent); }
+.rev .when { color: var(--muted); font-size: 0.8rem; }
+.rev b { font-weight: 600; }
+.diff-line { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 10px; margin-bottom: 6px; font-size: 0.9rem; }
+.diff-line .sym { width: 18px; font-weight: 800; text-align: center; }
+.diff-line.add { background: var(--accent-soft); }
+.diff-line.add .sym { color: var(--accent); }
+.diff-line.del { background: var(--danger-soft); }
+.diff-line.del .sym { color: var(--danger); }
+.diff-line.mod { background: var(--warn-soft); }
+.diff-line.mod .sym { color: var(--warn); }
+.diff-line small { color: var(--muted); margin-left: auto; }
+
+/* ---------- auth ---------- */
+.auth {
+    min-height: 700px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background:
+        radial-gradient(800px 400px at 20% 20%, rgba(27,217,106,0.10), transparent 60%),
+        var(--bg);
+}
+.auth-col { display: flex; align-items: center; justify-content: center; padding: 32px; }
+.auth-card { width: min(380px, 100%); background: var(--surface); border-radius: 20px; padding: 28px; text-align: center; }
+.auth-card h1 { font-size: 1.4rem; margin: 14px 0 6px; }
+.auth-card p { color: var(--muted); margin: 0 0 20px; font-size: 0.92rem; }
+.google { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 11px; border-radius: 12px; background: #fff; color: #1f1f1f; font-weight: 600; border: none; }
+.g { width: 18px; height: 18px; border-radius: 50%; background: conic-gradient(#ea4335 0 25%, #fbbc05 0 50%, #34a853 0 75%, #4285f4 0); }
+.inviter { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 4px; }
+.auth-caption { text-align: center; color: var(--faint); font-size: 0.8rem; margin-top: 10px; }
+.state-label { position: absolute; top: 12px; left: 14px; color: var(--faint); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.auth-col { position: relative; }
+.auth-col + .auth-col { border-left: 1px solid var(--line); }
+
+@media (max-width: 900px) {
+    .shell, .list-layout, .editor-layout, .history-layout, .auth { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .vis { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="picker">
+    <strong>Pages</strong>
+    <button data-go="signin" aria-pressed="true">Sign-in / invite</button>
+    <button data-go="dash" aria-pressed="false">Dashboard</button>
+    <button data-go="list" aria-pressed="false">List view</button>
+    <button data-go="editor" aria-pressed="false">Editor + search</button>
+    <button data-go="download" aria-pressed="false">Download</button>
+    <button data-go="share" aria-pressed="false">Share</button>
+    <button data-go="history" aria-pressed="false">History</button>
+    <button data-go="admin" aria-pressed="false">Admin</button>
+    <button data-go="public" aria-pressed="false">Public list</button>
+</div>
+
+<!-- ================= SIGN IN ================= -->
+<section class="page active" id="page-signin">
+    <p class="note"><b>Sign-in and invite.</b> Left: someone opens an invite link. Right: a Google account with no invite signs in.</p>
+    <div class="frame"><div class="screen">
+        <div class="auth">
+            <div class="auth-col">
+                <span class="state-label">/invite/k3Fq9…</span>
+                <div class="auth-card">
+                    <div class="inviter"><span class="avatar" style="background:#c9a36b"></span><span class="muted">jonah invited you</span></div>
+                    <h1>Join Modlist Matrix</h1>
+                    <p>Save modlists, share them with friends, and find the best version for your pack.</p>
+                    <button class="google"><span class="g"></span> Continue with Google</button>
+                    <div class="auth-caption">Invite valid until 14 Nov · 1 use left</div>
+                </div>
+            </div>
+            <div class="auth-col">
+                <span class="state-label">Signed in, no invite</span>
+                <div class="auth-card">
+                    <div class="brand" style="justify-content:center;margin:0"><i></i></div>
+                    <h1>You need an invite</h1>
+                    <p>alex.r@gmail.com isn't on this instance yet. Ask a member for an invite link.</p>
+                    <button class="btn" style="width:100%">Use a different account</button>
+                    <div class="auth-caption" style="margin-top:16px">You can still <span style="color:var(--accent)">try the matrix without saving →</span></div>
+                </div>
+            </div>
+        </div>
+    </div></div>
+</section>
+
+<!-- ================= DASHBOARD ================= -->
+<section class="page" id="page-dash">
+    <p class="note"><b>Dashboard.</b> Your lists, lists shared with you, and update alerts for saved lists.</p>
+    <div class="frame"><div class="screen"><div class="shell">
+        <aside class="sidebar" data-on="home"></aside>
+        <div class="content">
+            <div class="head">
+                <div>
+                    <h1>Hey Jonah</h1>
+                    <div class="sub">3 lists · 2 shared with you</div>
+                </div>
+                <div class="row">
+                    <button class="btn">Import</button>
+                    <button class="btn primary">+ New list</button>
+                </div>
+            </div>
+
+            <div class="section-title"><h2>My lists</h2><span class="select">Recently edited</span></div>
+            <div class="grid">
+                <div class="lcard">
+                    <div class="top"><h3>Survival 1.21</h3><span class="badge blue">Shared · 3</span></div>
+                    <div class="mosaic"><span class="ico" style="background:#4caf8a"></span><span class="ico" style="background:#c9a36b"></span><span class="ico" style="background:#8a6bc9"></span><span class="ico" style="background:#3a6fb6"></span><span class="ico" style="background:#c96b6b"></span></div>
+                    <div class="meta"><span>Fabric · 10 mods</span><span>Best <b>1.21.1</b></span></div>
+                </div>
+                <div class="lcard">
+                    <div class="top"><h3>Create SMP</h3><span class="badge">Public</span></div>
+                    <div class="mosaic"><span class="ico" style="background:#b07a3a"></span><span class="ico" style="background:#6b9ec9"></span><span class="ico" style="background:#c9a36b"></span><span class="ico" style="background:#5a8a5a"></span></div>
+                    <div class="meta"><span>NeoForge · 34 mods</span><span>Best <b>1.21.1</b></span></div>
+                </div>
+                <div class="lcard">
+                    <div class="top"><h3>Performance only</h3><span class="badge grey">Private</span></div>
+                    <div class="mosaic"><span class="ico" style="background:#4caf8a"></span><span class="ico" style="background:#6bc96f"></span><span class="ico" style="background:#7a7a7a"></span></div>
+                    <div class="meta"><span>Fabric · 7 mods</span><span>Best <b>1.21.4</b></span></div>
+                </div>
+                <div class="lcard new">+ New list<br><span style="font-size:0.8rem">or paste your old text list</span></div>
+            </div>
+
+            <div class="section-title"><h2>Shared with me</h2></div>
+            <div class="grid">
+                <div class="lcard">
+                    <div class="top"><h3>Friends server</h3><span class="badge grey">Editor</span></div>
+                    <div class="row muted" style="font-size:0.84rem"><span class="avatar" style="background:#6b8ac9;width:20px;height:20px"></span> sam</div>
+                    <div class="meta"><span>Fabric · 52 mods</span><span>Best <b>1.21.1</b></span></div>
+                </div>
+                <div class="lcard">
+                    <div class="top"><h3>Skyblock pack</h3><span class="badge grey">Viewer</span></div>
+                    <div class="row muted" style="font-size:0.84rem"><span class="avatar" style="background:#c96bb0;width:20px;height:20px"></span> mia</div>
+                    <div class="meta"><span>Forge · 18 mods</span><span>Best <b>1.20.1</b></span></div>
+                </div>
+            </div>
+
+            <div class="section-title"><h2>Updates</h2><span class="muted" style="font-size:0.84rem">Checked 5 min ago</span></div>
+            <div class="updates">
+                <div class="update"><span class="badge">4 updates</span><span class="grow">Survival 1.21 · Sodium, Iris, Lithium and 1 more have new versions for 1.21.1</span><button class="btn sm">Review</button></div>
+                <div class="update"><span class="badge warn">New version</span><span class="grow">Create SMP · 1.21.4 is now supported by all 34 mods</span><button class="btn sm">Open</button></div>
+            </div>
+        </div>
+    </div></div></div>
+</section>
+
+<!-- ================= LIST VIEW ================= -->
+<section class="page" id="page-list">
+    <p class="note"><b>List view.</b> The matrix, with column 1.21.1 selected. The panel on the right shows its packs and what blocks the next newer version. Striped cells mean support only through a beta version.</p>
+    <div class="frame"><div class="screen" id="list-screen"><div class="shell">
+        <aside class="sidebar" data-on="survival"></aside>
+        <div class="content">
+            <div class="head">
+                <div>
+                    <h1>Survival 1.21 <span class="badge blue">Shared · 3</span></h1>
+                    <div class="sub">Fabric · Edited by sam 2 min ago · Best version 1.21.1 (9/9)</div>
+                </div>
+                <div class="row">
+                    <button class="btn">History</button>
+                    <button class="btn">Share</button>
+                    <button class="btn">Edit list</button>
+                </div>
+            </div>
+            <div class="row" style="margin-top:18px">
+                <span class="chip on">Fabric</span><span class="chip">Forge</span><span class="chip">NeoForge</span><span class="chip">Quilt</span>
+                <span class="chip">Release + Beta ▾</span><span class="chip">Snapshots off</span><span class="chip">Hide unsupported</span>
+            </div>
+            <div class="list-layout">
+                <div>
+                    <div class="card tight"><div class="matrix-scroll"><table class="matrix" data-sel="1.21.1"></table></div></div>
+                    <div class="legend">
+                        <span><i style="background:var(--client)"></i>Client</span>
+                        <span><i style="background:var(--server)"></i>Server</span>
+                        <span><i style="background:var(--both)"></i>Both</span>
+                        <span><i style="background:var(--unknown)"></i>Unknown</span>
+                        <span><i style="background:var(--client);background-image:repeating-linear-gradient(135deg,rgba(255,255,255,0.3) 0 3px,transparent 3px 6px)"></i>Beta only</span>
+                        <span>Click a row to toggle it · click a column to inspect it</span>
+                    </div>
+                </div>
+                <div class="drawer">
+                    <div class="head"><h3>Minecraft 1.21.1</h3><span class="badge">Best</span></div>
+                    <div class="stat"><span>Supported</span><b>9 / 9 enabled</b></div>
+                    <div class="stat"><span>Client pack</span><b>8 mods + 2 deps</b></div>
+                    <div class="stat"><span>Server pack</span><b>5 mods + 1 dep</b></div>
+                    <h4>Blocking 1.21.3</h4>
+                    <div class="blocker"><span class="ico" style="background:#3a6fb6"></span><div>Distant Horizons<small>Latest: 1.21.1 · alternative Bobby ✓</small></div></div>
+                    <h4>Blocking 1.21.4</h4>
+                    <div class="blocker"><span class="ico" style="background:#c96b6b"></span><div>Simple Voice Chat<small>Latest: 1.21.3</small></div></div>
+                    <div class="blocker"><span class="ico" style="background:#7a7a7a"></span><div>Chunky<small>Missing for 1.21.3 only</small></div></div>
+                    <button class="btn primary">Download 1.21.1…</button>
+                    <button class="btn">Export .mrpack</button>
+                </div>
+            </div>
+        </div>
+    </div></div></div>
+</section>
+
+<!-- ================= EDITOR ================= -->
+<section class="page" id="page-editor">
+    <p class="note"><b>Editor and search.</b> Entries are grouped into sections, and you drag the handle to reorder or move them. Each alternative has its own side control. Search results on the right add a mod as a new entry or as an alternative to the selected one.</p>
+    <div class="frame"><div class="screen"><div class="shell">
+        <aside class="sidebar" data-on="survival"></aside>
+        <div class="content">
+            <div class="head">
+                <div>
+                    <h1>Editing Survival 1.21</h1>
+                    <div class="sub">Unsaved changes · 3 edits · draft autosaved</div>
+                </div>
+                <div class="row">
+                    <button class="btn ghost">↶ Undo</button>
+                    <button class="btn">Paste URLs</button>
+                    <button class="btn">Cancel</button>
+                    <button class="btn primary">Save</button>
+                </div>
+            </div>
+            <div class="editor-layout">
+                <div>
+                    <div class="sec-head"><span>Performance · 3</span><span>+ entry</span></div>
+
+                    <div class="entry">
+                        <span class="handle">⋮⋮</span>
+                        <div class="alts">
+                            <div class="alt-row"><span class="ico" style="background:#4caf8a"></span><span class="name">Sodium</span><span class="platform">MR</span></div>
+                        </div>
+                        <div class="entry-actions"><div class="row"><span class="select">Auto · Client</span><span>Required</span><span class="toggle on"></span></div></div>
+                    </div>
+
+                    <div class="entry drag">
+                        <span class="handle">⋮⋮</span>
+                        <div class="alts">
+                            <div class="alt-row"><span class="ico" style="background:#3a6fb6"></span><span class="name">Distant Horizons</span><span class="platform">MR</span></div>
+                            <div class="or">OR</div>
+                            <div class="alt-row"><span class="ico" style="background:#b6853a"></span><span class="name">Bobby</span><span class="platform">MR</span></div>
+                            <div class="entry-note">"DH is nicer but Bobby works on more versions"</div>
+                        </div>
+                        <div class="entry-actions">
+                            <div class="row"><span class="select">Auto · Client</span><span>Optional</span><span class="toggle"></span></div>
+                            <div class="row"><span class="select">Force · Client</span></div>
+                            <span>Split group · Note · Remove</span>
+                        </div>
+                    </div>
+
+                    <div class="entry drop-hint"></div>
+
+                    <div class="entry">
+                        <span class="handle">⋮⋮</span>
+                        <div class="alts">
+                            <div class="alt-row"><span class="ico" style="background:#6bc96f"></span><span class="name">Lithium</span><span class="platform">MR</span></div>
+                        </div>
+                        <div class="entry-actions"><div class="row"><span class="select">Auto · Both</span><span>Required</span><span class="toggle on"></span></div></div>
+                    </div>
+
+                    <div class="sec-head" style="margin-top:18px"><span>Utility · 4</span><span>+ entry</span></div>
+
+                    <div class="entry">
+                        <span class="handle">⋮⋮</span>
+                        <div class="alts">
+                            <div class="alt-row"><span class="ico" style="background:#7a7a7a"></span><span class="name">Chunky</span><span class="platform">MR</span></div>
+                            <div class="warn-line">⚠ Modrinth doesn't say which side. Set a fallback side.</div>
+                        </div>
+                        <div class="entry-actions"><div class="row"><span class="select">Fallback · Server</span><span>Required</span><span class="toggle on"></span></div></div>
+                    </div>
+
+                    <div class="entry">
+                        <span class="handle">⋮⋮</span>
+                        <div class="alts">
+                            <div class="alt-row"><span class="ico" style="background:#c96b6b"></span><span class="name">Simple Voice Chat</span><span class="platform">MR</span><span class="badge grey">Pinned 2.5.26</span></div>
+                        </div>
+                        <div class="entry-actions"><div class="row"><span class="select">Auto · Both</span><span>Required</span><span class="toggle on"></span></div></div>
+                    </div>
+                </div>
+
+                <div class="search-panel">
+                    <div class="input">🔍 minimap</div>
+                    <div class="row" style="margin-bottom:6px">
+                        <span class="chip on">Mods</span><span class="chip">Resource packs</span><span class="chip">Shaders</span>
+                    </div>
+                    <div class="row" style="margin-bottom:6px;font-size:0.8rem" ><span class="muted">Source:</span><span class="chip on">Modrinth</span><span class="chip">CurseForge</span></div>
+                    <div class="result">
+                        <span class="ico lg" style="background:#5a8a5a"></span>
+                        <div><div class="t">Xaero's Minimap</div><p>Minimap with waypoints · 18M downloads · updated 3d ago</p>
+                            <div class="row"><span class="added">✓ In list</span></div></div>
+                    </div>
+                    <div class="result">
+                        <span class="ico lg" style="background:#5ab0c9"></span>
+                        <div><div class="t">JourneyMap</div><p>Real-time mapping · 9M downloads · Fabric, Forge, NeoForge</p>
+                            <div class="row"><button class="btn sm primary">+ Add</button><button class="btn sm">+ as alt of Xaero's</button></div></div>
+                    </div>
+                    <div class="result">
+                        <span class="ico lg" style="background:#c9b05a"></span>
+                        <div><div class="t">VoxelMap-Updated</div><p>Fork of VoxelMap · 1M downloads</p>
+                            <div class="row"><button class="btn sm primary">+ Add</button><button class="btn sm">+ as alt</button></div></div>
+                    </div>
+                    <div class="result">
+                        <span class="ico lg" style="background:#8a5ac9"></span>
+                        <div><div class="t">FTB Chunks <span class="platform cf">CF</span></div><p>Map, minimap, claims · Forge only</p>
+                            <div class="row"><span class="badge warn">No Fabric</span></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div></div></div>
+</section>
+
+<!-- ================= DOWNLOAD ================= -->
+<section class="page" id="page-download">
+    <p class="note"><b>Download dialog.</b> Review every file before downloading, pick between alternatives, and see dependencies nested under the mod that needs them. The zip is built in your browser.</p>
+    <div class="frame"><div class="screen modal-host" data-bg="list">
+        <div class="backdrop">
+            <div class="modal">
+                <div class="modal-head">
+                    <div><h2>Download for Minecraft 1.21.1</h2><div class="sub">Fabric · Survival 1.21</div></div>
+                    <span class="x">✕</span>
+                </div>
+                <div class="modal-body">
+                    <div class="row" style="justify-content:space-between">
+                        <div class="tabs"><span class="on">Client pack · 10</span><span>Server pack · 6</span></div>
+                        <div class="row muted" style="font-size:0.85rem"><span class="toggle on"></span> Include dependencies</div>
+                    </div>
+                    <table class="list" style="margin-top:12px">
+                        <tr><th style="width:32px"></th><th>Mod</th><th>File</th><th>Channel</th><th style="text-align:right">Size</th></tr>
+                        <tr><td><span class="check on"></span></td><td><div class="mod"><span class="ico" style="background:#4caf8a"></span>Sodium</div></td><td class="muted">sodium-fabric-0.6.5+mc1.21.1.jar</td><td><span class="badge">Release</span></td><td style="text-align:right">1.1 MB</td></tr>
+                        <tr><td><span class="check on"></span></td><td><div class="mod"><span class="ico" style="background:#8a6bc9"></span>Iris Shaders</div></td><td class="muted">iris-fabric-1.8.1+mc1.21.1.jar</td><td><span class="badge">Release</span></td><td style="text-align:right">2.4 MB</td></tr>
+                        <tr><td><span class="check on"></span></td><td><div class="mod"><span class="ico" style="background:#3a6fb6"></span><span class="select">Distant Horizons</span></div></td><td class="muted">DistantHorizons-2.3.0-b-1.21.1.jar</td><td><span class="badge warn">Beta</span></td><td style="text-align:right">6.8 MB</td></tr>
+                        <tr><td><span class="check on"></span></td><td><div class="mod"><span class="ico" style="background:#c96b6b"></span>Simple Voice Chat</div></td><td class="muted">voicechat-fabric-1.21.1-2.5.26.jar</td><td><span class="badge">Release</span></td><td style="text-align:right">3.0 MB</td></tr>
+                        <tr class="dep"><td></td><td><div class="mod"><span class="muted">↳</span><span class="ico" style="background:#c9a36b;width:20px;height:20px"></span>Fabric API</div></td><td class="muted">fabric-api-0.115.0+1.21.1.jar <span class="muted">· needed by 3</span></td><td><span class="badge">Release</span></td><td style="text-align:right">2.2 MB</td></tr>
+                        <tr><td><span class="check"></span></td><td><div class="mod"><span class="ico" style="background:#5a8a5a"></span>Xaero's Minimap</div></td><td class="muted">Disabled in the matrix</td><td></td><td style="text-align:right" class="muted">—</td></tr>
+                    </table>
+                    <div style="margin-top:14px">
+                        <div class="row" style="justify-content:space-between;font-size:0.85rem;margin-bottom:6px"><span>Downloading 6 / 10 · checking hashes</span><span class="muted">11.4 / 18.3 MB</span></div>
+                        <div class="progress"><i></i></div>
+                    </div>
+                </div>
+                <div class="modal-foot">
+                    <span class="muted" style="font-size:0.85rem">☑ Remember these choices for 1.21.1</span>
+                    <div class="row">
+                        <button class="btn">Open as tabs</button>
+                        <button class="btn">Script</button>
+                        <button class="btn">.mrpack</button>
+                        <button class="btn primary">Download client.zip</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div></div>
+</section>
+
+<!-- ================= SHARE ================= -->
+<section class="page" id="page-share">
+    <p class="note"><b>Share dialog.</b> Choose the visibility, add people by handle as viewer or editor, and copy the link.</p>
+    <div class="frame"><div class="screen modal-host" data-bg="list">
+        <div class="backdrop">
+            <div class="modal narrow">
+                <div class="modal-head"><h2>Share "Survival 1.21"</h2><span class="x">✕</span></div>
+                <div class="modal-body">
+                    <div class="vis">
+                        <div><b>🔒 Private</b><span>Only you</span></div>
+                        <div class="on"><b>👥 Shared</b><span>People you add</span></div>
+                        <div><b>🌐 Public</b><span>Anyone with the link</span></div>
+                    </div>
+                    <div class="link-box" style="margin-top:16px">
+                        <span class="input">Add by handle, e.g. @alex</span>
+                        <span class="select">Viewer</span>
+                        <button class="btn primary">Add</button>
+                    </div>
+                    <div style="margin-top:8px">
+                        <div class="person"><span class="avatar" style="background:#c9a36b;width:32px;height:32px"></span><div class="grow">Jonah (you)<small>@jonah</small></div><span class="muted">Owner</span></div>
+                        <div class="person"><span class="avatar" style="background:#6b8ac9;width:32px;height:32px"></span><div class="grow">Sam<small>@sam</small></div><span class="select">Editor</span></div>
+                        <div class="person"><span class="avatar" style="background:#c96bb0;width:32px;height:32px"></span><div class="grow">Mia<small>@mia</small></div><span class="select">Viewer</span></div>
+                        <div class="person" style="border-bottom:none"><span class="avatar" style="background:#6bc9a3;width:32px;height:32px"></span><div class="grow">Leo<small>@leo</small></div><span class="select">Viewer</span></div>
+                    </div>
+                </div>
+                <div class="modal-foot">
+                    <div class="link-box" style="flex:1">
+                        <span class="input">matrix.jonah.lab/u/jonah/survival-1-21</span>
+                        <button class="btn">Copy link</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div></div>
+</section>
+
+<!-- ================= HISTORY ================= -->
+<section class="page" id="page-history">
+    <p class="note"><b>History.</b> Every save is a revision. Pick one to see what changed, then restore it or fork from it.</p>
+    <div class="frame"><div class="screen"><div class="shell">
+        <aside class="sidebar" data-on="survival"></aside>
+        <div class="content">
+            <div class="head">
+                <div><h1>History · Survival 1.21</h1><div class="sub">24 revisions</div></div>
+                <button class="btn">Back to list</button>
+            </div>
+            <div class="history-layout">
+                <div>
+                    <div class="rev on"><span class="avatar" style="background:#6b8ac9"></span><div><b>sam</b> added Bobby as alternative<div class="when">Today 14:02 · current</div></div></div>
+                    <div class="rev"><span class="avatar" style="background:#c9a36b"></span><div><b>jonah</b> changed 2 mods<div class="when">Today 11:40</div></div></div>
+                    <div class="rev"><span class="avatar" style="background:#c9a36b"></span><div><b>jonah</b> imported from text<div class="when">Yesterday 21:15</div></div></div>
+                    <div class="rev"><span class="avatar" style="background:#c96bb0"></span><div><b>mia</b> removed OptiFine<div class="when">28 Oct</div></div></div>
+                    <div class="rev"><span class="avatar" style="background:#c9a36b"></span><div><b>jonah</b> created list<div class="when">27 Oct</div></div></div>
+                </div>
+                <div class="card">
+                    <div class="head" style="margin-bottom:14px">
+                        <div><h2 style="margin:0">Today 11:40 → 14:02</h2><div class="sub">by sam</div></div>
+                        <div class="row"><button class="btn sm">Fork from here</button><button class="btn sm primary">Restore this version</button></div>
+                    </div>
+                    <div class="diff-line add"><span class="sym">+</span><span class="ico" style="background:#b6853a;width:22px;height:22px"></span>Bobby <span class="muted">added as alternative to Distant Horizons</span></div>
+                    <div class="diff-line add"><span class="sym">+</span><span class="ico" style="background:#7a7a7a;width:22px;height:22px"></span>Chunky <span class="muted">added to Utility</span></div>
+                    <div class="diff-line mod"><span class="sym">~</span><span class="ico" style="background:#3a6fb6;width:22px;height:22px"></span>Distant Horizons <span class="muted">required → optional</span></div>
+                    <div class="diff-line mod"><span class="sym">~</span><span class="ico" style="background:#c96b6b;width:22px;height:22px"></span>Simple Voice Chat <span class="muted">pinned to 2.5.26</span></div>
+                    <div class="diff-line del"><span class="sym">−</span><span class="ico" style="background:#a0a0a0;width:22px;height:22px"></span>Better F3 <span class="muted">removed</span></div>
+                </div>
+            </div>
+        </div>
+    </div></div></div>
+</section>
+
+<!-- ================= ADMIN ================= -->
+<section class="page" id="page-admin">
+    <p class="note"><b>Admin.</b> Create and revoke invites, see who joined with each one, and manage users.</p>
+    <div class="frame"><div class="screen"><div class="shell">
+        <aside class="sidebar" data-on="admin"></aside>
+        <div class="content">
+            <div class="head">
+                <div><h1>Admin</h1><div class="sub">6 users · 2 active invites · CurseForge key configured ✓</div></div>
+            </div>
+            <div class="card" style="margin-top:18px">
+                <h2>New invite</h2>
+                <div class="row">
+                    <span class="input" style="flex:1;min-width:180px">Locked to email (optional)</span>
+                    <span class="select">Uses: 1</span>
+                    <span class="select">Expires: 7 days</span>
+                    <button class="btn primary">Create invite</button>
+                </div>
+            </div>
+            <div class="card" style="margin-top:14px">
+                <h2>Invites</h2>
+                <table class="list">
+                    <tr><th>Code</th><th>Created by</th><th>Uses</th><th>Expires</th><th>Used by</th><th></th></tr>
+                    <tr><td>k3Fq9x</td><td>jonah</td><td>0 / 1</td><td>14 Nov</td><td class="muted">—</td><td style="text-align:right"><button class="btn sm">Copy link</button> <button class="btn sm danger">Revoke</button></td></tr>
+                    <tr><td>smp-crew</td><td>jonah</td><td>3 / 5</td><td>30 Nov</td><td>sam, mia, leo</td><td style="text-align:right"><button class="btn sm">Copy link</button> <button class="btn sm danger">Revoke</button></td></tr>
+                    <tr class="off"><td>p0aZ1m</td><td>jonah</td><td>1 / 1</td><td>Used</td><td>kai</td><td></td></tr>
+                </table>
+            </div>
+            <div class="card" style="margin-top:14px">
+                <h2>Users</h2>
+                <table class="list">
+                    <tr><th>User</th><th>Role</th><th>Lists</th><th>Joined</th><th></th></tr>
+                    <tr><td><div class="mod"><span class="avatar" style="background:#c9a36b"></span>jonah</div></td><td><span class="badge">Admin</span></td><td>3</td><td>27 Oct</td><td></td></tr>
+                    <tr><td><div class="mod"><span class="avatar" style="background:#6b8ac9"></span>sam</div></td><td><span class="badge grey">User</span></td><td>2</td><td>28 Oct</td><td style="text-align:right"><button class="btn sm">Invites: 0 ▾</button> <button class="btn sm danger">Disable</button></td></tr>
+                    <tr><td><div class="mod"><span class="avatar" style="background:#c96bb0"></span>mia</div></td><td><span class="badge grey">User</span></td><td>1</td><td>28 Oct</td><td style="text-align:right"><button class="btn sm">Invites: 2 ▾</button> <button class="btn sm danger">Disable</button></td></tr>
+                </table>
+            </div>
+        </div>
+    </div></div></div>
+</section>
+
+<!-- ================= PUBLIC ================= -->
+<section class="page" id="page-public">
+    <p class="note"><b>Public list, signed out.</b> No sidebar. It shows the owner, a read-only matrix, and Fork and Download buttons. Fork asks you to sign in.</p>
+    <div class="frame"><div class="screen">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 28px;border-bottom:1px solid var(--line)">
+            <div class="brand" style="margin:0"><i></i> Modlist Matrix</div>
+            <button class="google" style="width:auto;padding:8px 14px"><span class="g"></span> Sign in</button>
+        </div>
+        <div class="content" style="max-width:1100px;margin:0 auto">
+            <div class="head">
+                <div>
+                    <h1>Create SMP <span class="badge">Public</span></h1>
+                    <div class="sub"><span class="avatar" style="background:#c9a36b;width:18px;height:18px;vertical-align:-4px"></span> by jonah · NeoForge · 34 mods · updated 3 days ago</div>
+                    <p class="muted" style="max-width:640px;margin:10px 0 0">Our Create server pack. Performance mods on the client, Create addons on both sides.</p>
+                </div>
+                <div class="row">
+                    <button class="btn">Fork</button>
+                    <button class="btn primary">Download 1.21.1</button>
+                </div>
+            </div>
+            <div class="card tight" style="margin-top:20px"><div class="matrix-scroll"><table class="matrix"></table></div></div>
+        </div>
+    </div></div>
+</section>
+
+<script>
+const VERSIONS = ["1.21.4", "1.21.3", "1.21.1", "1.21", "1.20.6", "1.20.4", "1.20.1"];
+const SIDE_VAR = { c: "client", s: "server", b: "both", u: "unknown" };
+
+const ROWS = [
+    { alts: [{ name: "Sodium", side: "c", color: "#4caf8a", v: VERSIONS }] },
+    { alts: [{ name: "Fabric API", side: "b", color: "#c9a36b", v: VERSIONS }] },
+    { alts: [{ name: "Lithium", side: "b", color: "#6bc96f", v: VERSIONS }] },
+    { alts: [{ name: "Iris Shaders", side: "c", color: "#8a6bc9", v: ["1.21.4", "1.21.3", "1.21.1", "1.21", "1.20.4", "1.20.1"] }] },
+    { alts: [{ name: "Mod Menu", side: "c", color: "#6b9ec9", v: VERSIONS }] },
+    { alts: [
+        { name: "Distant Horizons", side: "c", color: "#3a6fb6", v: ["1.21.1", "1.21", "1.20.6", "1.20.4", "1.20.1"], beta: ["1.21.1", "1.21"] },
+        { name: "Bobby", side: "c", color: "#b6853a", v: VERSIONS }
+    ] },
+    { alts: [{ name: "Simple Voice Chat", side: "b", color: "#c96b6b", v: ["1.21.3", "1.21.1", "1.21", "1.20.6", "1.20.4", "1.20.1"] }] },
+    { alts: [{ name: "spark", side: "s", color: "#e6c84c", v: VERSIONS }] },
+    { alts: [{ name: "Chunky", side: "u", color: "#7a7a7a", v: ["1.21.4", "1.21.1", "1.21", "1.20.6", "1.20.4", "1.20.1"] }] },
+    { alts: [{ name: "Xaero's Minimap", side: "c", color: "#5a8a5a", v: VERSIONS }], off: true }
+];
+
+function buildMatrix(table) {
+    const sel = table.dataset.sel;
+    const counts = {};
+    for (const v of VERSIONS) counts[v] = ROWS.filter(r => !r.off && r.alts.some(a => a.v.includes(v))).length;
+    const max = Math.max(...Object.values(counts));
+    let html = `<tr><th style="text-align:left;padding-left:12px">Mod</th>`;
+    for (const v of VERSIONS) {
+        const cls = [counts[v] === max ? "best" : "", v === sel ? "sel" : ""].join(" ");
+        html += `<th class="${cls}">${v}<span class="n">${counts[v]}</span></th>`;
+    }
+    html += `</tr>`;
+    for (const row of ROWS) {
+        const first = row.alts[0];
+        const alt = row.alts.length > 1 ? ` <span class="alt">or ${row.alts.slice(1).map(a => a.name).join(", ")}</span>` : "";
+        html += `<tr class="${row.off ? "off" : ""}"><td class="name"><div class="mod"><span class="ico" style="background:${first.color}"></span><span>${first.name}${alt}</span></div></td>`;
+        for (const v of VERSIONS) {
+            const alts = row.alts.filter(a => a.v.includes(v));
+            const cell = alts.length === 0
+                ? `<div class="cell none"><span>–</span></div>`
+                : `<div class="cell">${alts.map(a => `<span class="${a.beta?.includes(v) ? "beta" : ""}" style="background-color:var(--${SIDE_VAR[a.side]})" title="${a.name}">${a.side.toUpperCase()}</span>`).join("")}</div>`;
+            html += `<td class="${v === sel ? "selcol" : ""}">${cell}</td>`;
+        }
+        html += `</tr>`;
+    }
+    table.innerHTML = html;
+}
+
+function buildSidebar(aside) {
+    const on = aside.dataset.on;
+    const item = (key, label, count, color) =>
+        `<div class="nav-item ${on === key ? "on" : ""}"><span>${color ? `<i class="dot" style="background:${color}"></i>` : ""}${label}</span><small>${count ?? ""}</small></div>`;
+    aside.innerHTML = `
+        <div class="brand"><i></i> Modlist Matrix</div>
+        <div class="search-box"><span>Search lists & mods</span><kbd>/</kbd></div>
+        <div style="margin-top:12px">${item("home", "🏠 Dashboard")}${item("explore", "🧭 Explore public")}</div>
+        <div class="nav-label">My lists</div>
+        ${item("survival", "Survival 1.21", 10, "#4caf8a")}
+        ${item("create", "Create SMP", 34, "#b07a3a")}
+        ${item("perf", "Performance only", 7, "#6bc96f")}
+        <div class="nav-label">Shared with me</div>
+        ${item("friends", "Friends server", 52, "#6b8ac9")}
+        ${item("sky", "Skyblock pack", 18, "#c96bb0")}
+        <button class="new-btn">+ New list</button>
+        <div style="margin-top:8px">${item("admin", "⚙ Admin")}</div>
+        <div class="side-foot"><span class="avatar" style="background:#c9a36b"></span><div>Jonah<small>@jonah</small></div></div>`;
+}
+
+document.querySelectorAll("aside.sidebar").forEach(buildSidebar);
+document.querySelectorAll("table.matrix").forEach(buildMatrix);
+
+// Put a copy of the list view behind each modal
+const listShell = document.querySelector("#list-screen .shell");
+document.querySelectorAll(".modal-host").forEach(host => {
+    host.prepend(listShell.cloneNode(true));
+});
+
+document.querySelectorAll(".picker button").forEach(btn => {
+    btn.addEventListener("click", () => {
+        document.querySelectorAll(".picker button").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
+        document.querySelectorAll(".page").forEach(p => p.classList.toggle("active", p.id === `page-${btn.dataset.go}`));
+        window.scrollTo(0, 0);
+    });
+});
+</script>
+</body>
+</html>

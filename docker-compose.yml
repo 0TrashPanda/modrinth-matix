@@ -1,0 +1,20 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    # GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and ADMIN_EMAIL come from .env.
+    env_file: .env
+    environment:
+      DATABASE_URL: /data/app.db
+      # The public URL nginx serves the app on. Needed for CSRF checks and the Google redirect.
+      ORIGIN: https://matrix.example.com
+      ADDRESS_HEADER: X-Forwarded-For
+      XFF_DEPTH: "1"
+    volumes:
+      - matrix-data:/data
+    ports:
+      # Only reachable through nginx on the same machine.
+      - "127.0.0.1:3000:3000"
+
+volumes:
+  matrix-data:

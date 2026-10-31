@@ -1,0 +1,11 @@
+node_modules
+build
+.svelte-kit
+data
+*.db
+.env
+.env.*
+.git
+.claude
+docs
+legacy

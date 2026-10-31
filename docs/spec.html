@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modlist Matrix Spec</title>
+<style>
+:root {
+    --bg: #f7f7f5;
+    --surface: #ffffff;
+    --text: #1d1d1b;
+    --muted: #6b6b66;
+    --border: #e2e2dd;
+    --accent: #2f7d4a;
+    --p1: #2f7d4a;
+    --p2: #2f5f8a;
+    --p3: #8a5a2f;
+    --p4: #6b6b66;
+    --code-bg: #efefeb;
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --bg: #121212;
+        --surface: #1b1b1b;
+        --text: #ececec;
+        --muted: #9a9a95;
+        --border: #333330;
+        --accent: #5cbf7b;
+        --p1: #5cbf7b;
+        --p2: #6fa6d6;
+        --p3: #d6a06f;
+        --p4: #9a9a95;
+        --code-bg: #262624;
+    }
+}
+:root[data-theme="dark"] {
+    --bg: #121212;
+    --surface: #1b1b1b;
+    --text: #ececec;
+    --muted: #9a9a95;
+    --border: #333330;
+    --accent: #5cbf7b;
+    --p1: #5cbf7b;
+    --p2: #6fa6d6;
+    --p3: #d6a06f;
+    --p4: #9a9a95;
+    --code-bg: #262624;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+main {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 48px 16px 96px;
+}
+
+h1 { font-size: 2rem; margin: 0 0 4px; }
+h2 { font-size: 1.35rem; margin: 56px 0 12px; padding-top: 16px; border-top: 1px solid var(--border); }
+h3 { font-size: 1.05rem; margin: 28px 0 8px; }
+
+.subtitle { color: var(--muted); margin: 0 0 32px; }
+
+nav ol { columns: 2; column-gap: 32px; padding-left: 20px; margin: 0; }
+nav a { color: var(--accent); text-decoration: none; }
+nav a:hover { text-decoration: underline; }
+
+code {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 0.88em;
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+}
+
+pre {
+    background: var(--code-bg);
+    padding: 12px 14px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+}
+pre code { background: none; padding: 0; }
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 0.92rem;
+}
+.table-wrap { overflow-x: auto; }
+th, td {
+    text-align: left;
+    vertical-align: top;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+}
+th { color: var(--muted); font-weight: 600; }
+
+.callout {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin: 16px 0;
+}
+.callout p { margin: 0; }
+.callout p + p { margin-top: 8px; }
+
+.tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 1px 7px;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+    white-space: nowrap;
+}
+.p1 { color: var(--p1); }
+.p2 { color: var(--p2); }
+.p3 { color: var(--p3); }
+.p4 { color: var(--p4); }
+
+ul.features { list-style: none; padding: 0; }
+ul.features > li {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+}
+ul.features > li .tag { margin-right: 8px; }
+
+@media (max-width: 600px) {
+    nav ol { columns: 1; }
+    main { padding-top: 32px; }
+}
+</style>
+</head>
+<body>
+<main>
+
+<h1>Modlist Matrix: Rewrite Spec</h1>
+<p class="subtitle">Draft 1 · 2026-10-31 · The stack has not been chosen yet. This document describes behaviour, not implementation.</p>
+
+<nav>
+<ol>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#current">Current behaviour to keep</a></li>
+    <li><a href="#auth">Accounts and invites</a></li>
+    <li><a href="#lists">Modlists and visibility</a></li>
+    <li><a href="#editor">List editor</a></li>
+    <li><a href="#matrix">Compatibility matrix</a></li>
+    <li><a href="#downloads">Downloads and export</a></li>
+    <li><a href="#platforms">Platforms</a></li>
+    <li><a href="#qol">Quality of life</a></li>
+    <li><a href="#architecture">Architecture constraints</a></li>
+    <li><a href="#data">Data model</a></li>
+    <li><a href="#phases">Phases</a></li>
+    <li><a href="#bugs">Known issues in v1</a></li>
+    <li><a href="#open">Open questions</a></li>
+</ol>
+</nav>
+
+<h2 id="overview">1. Overview</h2>
+<p>
+    Modlist Matrix shows which Minecraft versions a set of mods supports on a given loader. It helps you pick the
+    newest version most of your mods run on, then get the client and server files for that version.
+</p>
+<p>
+    Version 1 is a single static page. The list lives in a textarea, which you currently keep in a file on pCloud.
+    The rewrite adds accounts and saved lists. Its main goal is that the list is stored in the app.
+</p>
+
+<h3>Goals</h3>
+<ul>
+    <li>Saved lists tied to an account, so text files are no longer needed.</li>
+    <li>Lists that can be private, shared with friends, or public.</li>
+    <li>Everything v1 does, but faster and with less manual URL editing.</li>
+    <li>Low load on the home-lab server. The browser keeps doing the heavy API and download work.</li>
+</ul>
+
+<h3>Audience</h3>
+<p>
+    You and your friends. The site can be reached publicly, but registration needs an invite. The expected user
+    count is small (under ~50), so this spec doesn't plan for scaling.
+</p>
+
+<h3>Non-goals</h3>
+<ul>
+    <li>A launcher. The app never installs mods into a Minecraft instance.</li>
+    <li>Hosting or mirroring mod files.</li>
+    <li>Open sign-up, or any monetisation.</li>
+</ul>
+
+<h2 id="current">2. Current behaviour to keep</h2>
+<p>These behaviours from <code>index.html</code> must survive the rewrite, either directly or improved.</p>
+
+<div class="table-wrap">
+<table>
+    <tr><th>Behaviour</th><th>v1 detail</th></tr>
+    <tr><td>OR-groups</td><td>Alternatives on one line separated by commas form one row. A version counts as supported if any alternative supports it.</td></tr>
+    <tr><td>Side override</td><td><code>[c]</code>, <code>[s]</code> and <code>[b]</code> are a fallback, used only when Modrinth's side is unknown. <code>[!c]</code>, <code>[!s]</code> and <code>[!b]</code> force the side.</td></tr>
+    <tr><td>Loader filter</td><td>One loader at a time: Fabric, Forge, Quilt or NeoForge.</td></tr>
+    <tr><td>Snapshots</td><td>Hidden by default. Only versions matching <code>x.y</code> or <code>x.y.z</code> appear unless you turn snapshots on.</td></tr>
+    <tr><td>Matrix cell</td><td>Split per alternative, colour-coded by side (client, server, both, unknown).</td></tr>
+    <tr><td>Version counts</td><td>The header shows the number of enabled rows supporting that version. Versions with the highest count are highlighted.</td></tr>
+    <tr><td>Toggle rows</td><td>Clicking a row excludes it from the counts without removing it.</td></tr>
+    <tr><td>Download modal</td><td>Per version: choose client or server pack, pick between alternatives, and optionally include required dependencies.</td></tr>
+    <tr><td>Client-side requests</td><td>All Modrinth API calls come from the browser. This must stay true; see <a href="#architecture">§10</a>.</td></tr>
+</table>
+</div>
+
+<h2 id="auth">3. Accounts and invites</h2>
+
+<h3>Sign-in</h3>
+<ul>
+    <li>Sign-in uses <strong>Google</strong> only (OAuth 2.0 / OpenID Connect). The app stores no passwords.</li>
+    <li>Sessions use secure, HTTP-only cookies and last 30 days, renewed on activity.</li>
+    <li>The architecture allows adding other providers later, such as Discord or GitHub, without changing the data model.</li>
+</ul>
+
+<h3>Invite-only registration</h3>
+<ul>
+    <li>The first Google account to sign in becomes <strong>admin</strong>, or the admin is set in server config.</li>
+    <li>Anyone else signing in with Google gets an account only if they present a valid invite. Without one they see "You need an invite" and no account is created.</li>
+    <li>An invite is a link like <code>/invite/&lt;code&gt;</code>. Opening it and signing in creates the account.</li>
+    <li>Invite options: single-use or N uses, an optional expiry date, and an optional lock to one email address.</li>
+    <li>The admin can create and revoke invites and see who used each one.</li>
+    <li>Optional setting: normal users can create a limited number of invites (default 0).</li>
+</ul>
+
+<h3>Roles</h3>
+<div class="table-wrap">
+<table>
+    <tr><th>Role</th><th>Can</th></tr>
+    <tr><td>Anonymous</td><td>View public lists. Use the matrix with a temporary, unsaved list, the same as v1.</td></tr>
+    <tr><td>User</td><td>Everything above. Create, edit and delete their own lists. Share lists and fork lists.</td></tr>
+    <tr><td>Admin</td><td>Everything above. Manage invites, disable or delete users, and change instance settings.</td></tr>
+</table>
+</div>
+
+<h3>Profile</h3>
+<ul>
+    <li>Display name and avatar come from Google and can be edited.</li>
+    <li>A unique handle is used in share dialogs and public URLs, for example <code>/u/jonah/my-pack</code>.</li>
+    <li>"Delete my account" removes the user's lists. Shares with other users are revoked.</li>
+</ul>
+
+<h2 id="lists">4. Modlists and visibility</h2>
+
+<h3>A modlist has</h3>
+<ul>
+    <li>A name, an optional description, and an optional icon chosen from a mod in the list.</li>
+    <li>Default settings: loader, target Minecraft version (optional), whether to include snapshots, and the client or server focus.</li>
+    <li>Ordered entries. Each entry is an OR-group of one or more alternatives (see <a href="#data">§11</a>).</li>
+    <li>Optional sections inside the list, such as "Performance" or "QoL", to group entries.</li>
+    <li>Tags or folders for organising lists on the dashboard.</li>
+</ul>
+
+<h3>Visibility</h3>
+<div class="table-wrap">
+<table>
+    <tr><th>Level</th><th>Who can see</th><th>Who can edit</th></tr>
+    <tr><td><strong>Private</strong></td><td>Owner only</td><td>Owner</td></tr>
+    <tr><td><strong>Shared</strong></td><td>Owner, plus specific users invited by handle</td><td>Owner, plus users given the <em>editor</em> role</td></tr>
+    <tr><td><strong>Public</strong></td><td>Anyone with the link, including anonymous visitors. Public lists also appear on the owner's profile page.</td><td>Owner, plus editors</td></tr>
+</table>
+</div>
+<ul>
+    <li>Shared and public both support per-user <em>viewer</em> and <em>editor</em> roles. Public only adds anonymous read access.</li>
+    <li>Any signed-in user who can view a list can <strong>fork</strong> it into a private copy. The copy records where it came from.</li>
+    <li>Lists you've been given access to appear on your dashboard under "Shared with me".</li>
+</ul>
+
+<h3>History</h3>
+<ul>
+    <li>Every save creates a revision. You can view, diff and restore old revisions.</li>
+    <li>Revisions record who made the change, which matters when editors are involved.</li>
+    <li>Undo and redo work inside the editor before saving.</li>
+    <li>If two editors save at the same time, the second save is rejected with "List changed, reload". Merging is not required.</li>
+</ul>
+
+<h3>Import and export of lists</h3>
+<ul>
+    <li><strong>Import plain text in the v1 format</strong>, so the existing pCloud files load directly. This is required for phase 1.</li>
+    <li>Export to the same plain-text format, for backups.</li>
+    <li>Import and export JSON (full fidelity, including notes, pins and sections).</li>
+    <li>Import a Modrinth <code>.mrpack</code> by reading its file hashes and matching them to projects.</li>
+</ul>
+
+<h2 id="editor">5. List editor</h2>
+<ul class="features">
+    <li><span class="tag p1">P1</span><strong>Paste URLs</strong> in the v1 format, which is parsed into entries. This is the quick path for power users.</li>
+    <li><span class="tag p2">P2</span><strong>In-app search</strong> of Modrinth (and later CurseForge) projects, showing icon, downloads, loaders and last update. Add a result as a new entry or as an alternative to an existing entry.</li>
+    <li><span class="tag p2">P2</span><strong>Visual side controls</strong> replace the <code>[!c]</code> syntax: per alternative, choose "Auto (Modrinth)", "Fallback: client/server/both" or "Force: client/server/both". The text format stays for import and export.</li>
+    <li><span class="tag p2">P2</span><strong>Drag and drop</strong> to reorder entries, move entries between sections, and merge two entries into one OR-group or split them apart.</li>
+    <li><span class="tag p2">P2</span><strong>Per-entry notes</strong> (free text) and a <strong>required/optional</strong> flag. Optional entries are left out of the best-version calculation by default.</li>
+    <li><span class="tag p3">P3</span><strong>Version pin</strong>: lock an alternative to a specific mod version, so update checks skip it.</li>
+    <li><span class="tag p3">P3</span><strong>Project types</strong>: mods, resource packs, shaders and datapacks. Entries show their type, and the type affects which loader filter applies (shaders filter by Iris or OptiFine, resource packs ignore the loader).</li>
+    <li><span class="tag p2">P2</span><strong>Duplicate detection</strong>: warn when the same project appears twice.</li>
+    <li><span class="tag p2">P2</span><strong>Validation</strong>: flag URLs that don't resolve, deleted or archived projects, and projects that don't support the list's loader at all.</li>
+</ul>
+
+<h2 id="matrix">6. Compatibility matrix</h2>
+<ul class="features">
+    <li><span class="tag p1">P1</span><strong>Parity with v1</strong>: rows as entries, columns as versions sorted newest first, cells split per alternative and coloured by side, header counts and highlight, and row toggling.</li>
+    <li><span class="tag p1">P1</span><strong>Sticky header row and first column</strong>, so a large matrix stays readable.</li>
+    <li><span class="tag p1">P1</span><strong>Loading progress</strong> ("Fetched 23 / 41 projects") and visible per-row errors instead of silent console logs.</li>
+    <li><span class="tag p2">P2</span><strong>Target version view</strong>: select a version to see which entries block it. For each blocker it shows the newest version that entry does support, and whether an alternative would fix it.</li>
+    <li><span class="tag p2">P2</span><strong>Column filters</strong>: hide versions with zero support, set a version range (for example 1.20 to newest), and collapse patch versions into their minor version.</li>
+    <li><span class="tag p2">P2</span><strong>Release channel</strong>: choose to count only <em>release</em>, or also <em>beta</em> and <em>alpha</em> mod versions. Cells show when support exists only through beta or alpha versions.</li>
+    <li><span class="tag p2">P2</span><strong>Row sort and filter</strong>: by name, by side, or by support for the target version, plus a text filter.</li>
+    <li><span class="tag p3">P3</span><strong>Loader comparison</strong>: show counts for several loaders side by side, to answer questions like "would NeoForge get me a newer version?"</li>
+    <li><span class="tag p3">P3</span><strong>Staleness</strong>: mark entries whose project hasn't been updated in more than N months.</li>
+    <li><span class="tag p3">P3</span><strong>Dependency and conflict view</strong> for a chosen version: show required dependencies that aren't in the list, and Modrinth <code>incompatible</code> dependencies between entries.</li>
+    <li><span class="tag p1">P1</span><strong>Cell details</strong>: hovering or tapping a cell shows the mod version that would be used, its release channel and its date.</li>
+    <li><span class="tag p2">P2</span><strong>Mobile layout</strong>: on narrow screens, show a "per version" list view instead of the full grid.</li>
+</ul>
+
+<h3>Side resolution (unchanged rules, improved input)</h3>
+<p>For each alternative, the side is resolved in this order:</p>
+<ol>
+    <li>A forced override (<code>[!x]</code>) wins.</li>
+    <li>Otherwise, Modrinth's <code>client_side</code> and <code>server_side</code> values are used.</li>
+    <li>If Modrinth's answer is unknown, the fallback override (<code>[x]</code>) is used.</li>
+</ol>
+<p>
+    Change from v1: v1 only looks at <code>required</code>. The rewrite also treats <code>optional</code> as
+    "works on that side". For example, a mod that is <code>client_side: optional</code> and
+    <code>server_side: required</code> counts as <em>both</em>, while <code>client_side: required</code> and
+    <code>server_side: unsupported</code> counts as <em>client</em>. The exact mapping should be shown in the UI.
+</p>
+
+<h2 id="downloads">7. Downloads and export</h2>
+
+<div class="callout">
+    <p><strong>Approach:</strong> all mod files go from the platform's CDN straight to the user's browser. The server never relays jar files.</p>
+    <p>This fits your low-upload home lab. Modrinth's CDN allows cross-origin requests, so the browser can fetch the jars itself and build a zip locally (for example with a zip library such as fflate). The server only ever sends small JSON.</p>
+</div>
+
+<ul class="features">
+    <li><span class="tag p1">P1</span><strong>Open download tabs</strong>, as in v1: client or server pack, choice of alternatives, and dependencies.</li>
+    <li><span class="tag p2">P2</span><strong>Download as zip</strong>: the browser fetches every selected jar and builds <code>client.zip</code>, <code>server.zip</code>, or one zip with <code>client/</code> and <code>server/</code> folders. It shows progress and checks each file's SHA-1/SHA-512 from the API.</li>
+    <li><span class="tag p2">P2</span><strong>Review before download</strong>: a table of every file that will be downloaded, including resolved dependencies and the alternative chosen. Files can be unticked.</li>
+    <li><span class="tag p2">P2</span><strong>Recursive dependencies</strong>: required dependencies of dependencies are included too. v1 only goes one level deep.</li>
+    <li><span class="tag p2">P2</span><strong>Remember choices</strong>: the alternative picked for each entry, per version and pack side, is saved with the list so the modal is pre-filled next time.</li>
+    <li><span class="tag p3">P3</span><strong>Export <code>.mrpack</code></strong>: a Modrinth modpack file that the Modrinth App, Prism and others can import. It contains only URLs and hashes, so it's tiny and needs no file downloads.</li>
+    <li><span class="tag p3">P3</span><strong>Export a download script</strong> (PowerShell and bash) that fetches the files and checks their hashes. Useful for setting up a server directly on the home lab.</li>
+    <li><span class="tag p3">P3</span><strong>Update check</strong> for a saved list and its chosen version: "4 mods have newer versions for 1.21.4 Fabric", with a changelog link for each.</li>
+</ul>
+
+<h2 id="platforms">8. Platforms</h2>
+
+<h3>Modrinth <span class="tag p1">P1</span></h3>
+<ul>
+    <li>Called directly from the browser. No key is needed, and the limit is about 300 requests per minute per IP. Because the requests come from each user's own IP, the server is never rate limited.</li>
+    <li>Use batch endpoints where possible to cut request counts:
+        <code>GET /v2/projects?ids=[…]</code> for project metadata in one call,
+        and <code>POST /v2/version_files</code> for hash lookups.</li>
+    <li>Version lists still need one call per project: <code>GET /v2/project/{id}/version</code>.</li>
+    <li>Saved entries store the project <strong>ID</strong> as well as the slug, so renamed slugs don't break lists.</li>
+</ul>
+
+<h3>CurseForge <span class="tag p3">P3</span></h3>
+<div class="callout">
+    <p><strong>Why CurseForge is harder:</strong> its API needs an API key from the CurseForge console, and the terms say the key must not be shown to users. So the browser can't call CurseForge directly with the key, unlike Modrinth.</p>
+    <p><strong>Proposed approach:</strong> the server runs a thin, cached proxy for CurseForge <em>metadata only</em> (projects, file lists, dependencies). This is small JSON, so upload speed isn't a concern. The server caches responses (for example 1 hour for files and 24 hours for project info), which keeps it well under CurseForge's limits for a few users.</p>
+    <p><strong>Downloads:</strong> the browser fetches files straight from CurseForge's CDN if cross-origin requests are allowed. Otherwise those files fall back to "open in tab". Some CurseForge authors disable third-party downloads; those entries always fall back to a link to the CurseForge page.</p>
+</div>
+<ul>
+    <li>An alternative can be a Modrinth or CurseForge project, so one OR-group can mix platforms.</li>
+    <li>Loader and version naming differ between the platforms and must be normalised to one internal format.</li>
+    <li>CurseForge's side information is weaker than Modrinth's. CurseForge entries default to "unknown" side, so the overrides matter more.</li>
+    <li>If no API key is configured, the instance hides CurseForge features.</li>
+</ul>
+
+<h2 id="qol">9. Quality of life</h2>
+<ul class="features">
+    <li><span class="tag p1">P1</span><strong>Client-side cache</strong> of API responses in IndexedDB, with a TTL (for example 1 hour for versions and 24 hours for project info), so reopening a list is nearly instant. A "Refresh" button bypasses the cache.</li>
+    <li><span class="tag p1">P1</span><strong>Autosave of drafts</strong> locally, so a closed tab doesn't lose unsaved edits.</li>
+    <li><span class="tag p1">P1</span><strong>Dark and light themes</strong>, defaulting to the system setting.</li>
+    <li><span class="tag p2">P2</span><strong>Keyboard shortcuts</strong>: <code>/</code> to search, <code>Ctrl+S</code> to save, <code>Ctrl+Z</code> to undo, and arrow keys to move around the matrix.</li>
+    <li><span class="tag p2">P2</span><strong>Dashboard</strong>: your lists, "Shared with me", recently opened lists, and quick stats per list (entry count and best version).</li>
+    <li><span class="tag p2">P2</span><strong>Shareable matrix state</strong>: the URL keeps the loader, target version and filters, so a link opens the same view.</li>
+    <li><span class="tag p3">P3</span><strong>Import from a mods folder</strong>: drop jar files on the page. The browser hashes them locally and matches them through <code>POST /v2/version_files</code>. Files never leave the browser.</li>
+    <li><span class="tag p3">P3</span><strong>List comparison</strong>: diff two lists, or two revisions of one list.</li>
+    <li><span class="tag p4">P4</span><strong>Activity notifications</strong>, such as "a friend edited a shared list".</li>
+</ul>
+
+<h2 id="architecture">10. Architecture constraints</h2>
+<p>These constraints come from the home lab setup and will guide the stack choice.</p>
+<div class="table-wrap">
+<table>
+    <tr><th>Constraint</th><th>Consequence</th></tr>
+    <tr><td>The server has low upload bandwidth</td><td>The server stores and serves only small JSON and the app bundle. The app bundle should be small and cacheable, ideally behind a CDN or tunnel cache. No file proxying.</td></tr>
+    <tr><td>The server must not be rate limited by platforms</td><td>Modrinth calls stay in the browser. Only CurseForge goes through the server, and it is cached.</td></tr>
+    <tr><td>A handful of users</td><td>A single process and a single database file (for example SQLite) are fine. No queue, no cluster.</td></tr>
+    <tr><td>The server is publicly reachable</td><td>HTTPS (via reverse proxy or tunnel), invite-only sign-up, CSRF protection, rate limits on auth and invite endpoints, and strict authorisation checks on every list endpoint.</td></tr>
+    <tr><td>Home lab ops</td><td>Ships as one Docker image (or a compose file). Config comes from environment variables. Backups mean copying the database file, documented in the README.</td></tr>
+</table>
+</div>
+
+<h3>Responsibilities</h3>
+<ul>
+    <li><strong>Browser:</strong> all Modrinth requests, the matrix calculation, the API cache, zip building and jar hashing.</li>
+    <li><strong>Server:</strong> Google OAuth, sessions, invites, list storage and permissions, revisions, and the CurseForge proxy.</li>
+</ul>
+
+<h2 id="data">11. Data model (logical)</h2>
+<pre><code>User          id, google_sub, email, handle, display_name, avatar_url,
+              role (user|admin), created_at, disabled_at
+
+Invite        id, code, created_by → User, max_uses, uses,
+              expires_at, locked_email, revoked_at
+
+InviteUse     invite → Invite, user → User, used_at
+
+Modlist       id, owner → User, name, slug, description, icon,
+              visibility (private|shared|public),
+              loader, target_mc_version, include_snapshots,
+              release_channels, forked_from → Modlist,
+              current_revision, created_at, updated_at
+
+ModlistShare  modlist → Modlist, user → User, role (viewer|editor)
+
+Revision      id, modlist → Modlist, author → User, created_at,
+              content (JSON snapshot of sections + entries)
+
+-- inside Revision.content --
+Section       id, name, order
+Entry         id, section_id, order, enabled, required, note,
+              alternatives[]
+Alternative   platform (modrinth|curseforge), project_id, slug,
+              cached_title, cached_icon, project_type,
+              side_mode (auto|fallback|force), side (client|server|both),
+              pinned_version_id, note
+DownloadPick  mc_version, pack_side (client|server), entry_id → alternative index</code></pre>
+<p>
+    Storing list content as a JSON snapshot per revision keeps history simple and matches how lists are edited
+    (as a whole). Lists are small, so storage size is not a concern.
+</p>
+
+<h2 id="phases">12. Phases</h2>
+<div class="table-wrap">
+<table>
+    <tr><th>Phase</th><th>Contents</th><th>Done when</th></tr>
+    <tr>
+        <td><span class="tag p1">P1</span> Accounts</td>
+        <td>Google sign-in, invites, admin page, saved private lists, plain-text import and export, v1 matrix and download parity, sticky headers, progress and errors, client cache, revisions (save and restore), drafts.</td>
+        <td>You can delete the pCloud file and use the app only.</td>
+    </tr>
+    <tr>
+        <td><span class="tag p2">P2</span> Sharing and editor</td>
+        <td>Shared and public visibility, fork, in-app search, visual side controls, drag and drop, notes, target version view, filters, release channels, zip download, recursive dependencies, review before download, dashboard.</td>
+        <td>Friends use shared lists without editing any text.</td>
+    </tr>
+    <tr>
+        <td><span class="tag p3">P3</span> Power features</td>
+        <td>CurseForge, <code>.mrpack</code> import and export, update check, version pins, project types, loader comparison, dependency and conflict view, staleness, jar-folder import, download script.</td>
+        <td>Lists cover a full modpack across both platforms.</td>
+    </tr>
+    <tr>
+        <td><span class="tag p4">P4</span> Nice to have</td>
+        <td>Notifications, list comparison, extra login providers.</td>
+        <td>-</td>
+    </tr>
+</table>
+</div>
+
+<h2 id="bugs">13. Known issues in v1 (fix in the rewrite)</h2>
+<ul>
+    <li>Mod links are always built as <code>/mod/&lt;slug&gt;</code>, which is wrong for plugins, resource packs and other types.</li>
+    <li><code>optional</code> sides are treated as unknown (see <a href="#matrix">§6</a>).</li>
+    <li>Dependencies are resolved only one level deep, and they aren't filtered by pack side.</li>
+    <li>When a dependency is a project ID, the fetched version may be a beta even if a release exists. Releases should be preferred.</li>
+    <li>Failed fetches are only logged to the console, so the row silently goes empty.</li>
+    <li>Every run re-fetches every project, and the project and version endpoints are called separately per alternative.</li>
+    <li>Opening many tabs at once is often blocked by the browser's pop-up blocker.</li>
+    <li>Loader and snapshot settings aren't remembered between visits.</li>
+</ul>
+
+<h2 id="open">14. Open questions</h2>
+<ul>
+    <li><s>Domain and tunnel</s>. Answered: nginx reverse proxy on the home lab. nginx serves the app's static files compressed (brotli or gzip) with long-lived cache headers, so each browser downloads the bundle once.</li>
+    <li>Should public lists be listed or searchable on an "Explore" page, or reachable only by link?</li>
+    <li>Should anonymous visitors be able to use the matrix with an unsaved list, as v1 allows today? This spec assumes yes.</li>
+    <li>Is a CurseForge API key already available, or does one need to be requested?</li>
+</ul>
+
+</main>
+</body>
+</html>
