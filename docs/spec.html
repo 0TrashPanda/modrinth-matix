@@ -15,7 +15,8 @@
     --p1: #2f7d4a;
     --p2: #2f5f8a;
     --p3: #8a5a2f;
-    --p4: #6b6b66;
+    --p4: #7a4fa8;
+    --p5: #6b6b66;
     --code-bg: #efefeb;
 }
 @media (prefers-color-scheme: dark) {
@@ -29,7 +30,8 @@
         --p1: #5cbf7b;
         --p2: #6fa6d6;
         --p3: #d6a06f;
-        --p4: #9a9a95;
+        --p4: #b48ee0;
+        --p5: #9a9a95;
         --code-bg: #262624;
     }
 }
@@ -43,7 +45,8 @@
     --p1: #5cbf7b;
     --p2: #6fa6d6;
     --p3: #d6a06f;
-    --p4: #9a9a95;
+    --p4: #b48ee0;
+    --p5: #9a9a95;
     --code-bg: #262624;
 }
 
@@ -129,6 +132,7 @@ th { color: var(--muted); font-weight: 600; }
 .p2 { color: var(--p2); }
 .p3 { color: var(--p3); }
 .p4 { color: var(--p4); }
+.p5 { color: var(--p5); }
 
 ul.features { list-style: none; padding: 0; }
 ul.features > li {
@@ -147,7 +151,7 @@ ul.features > li .tag { margin-right: 8px; }
 <main>
 
 <h1>Modlist Matrix: Rewrite Spec</h1>
-<p class="subtitle">Draft 1 · 2026-10-31 · The stack has not been chosen yet. This document describes behaviour, not implementation.</p>
+<p class="subtitle">Draft 2 · 2026-11-07 (adds config profiles) · Built with SvelteKit, SQLite and Drizzle (see the README). This document describes behaviour, not implementation.</p>
 
 <nav>
 <ol>
@@ -159,6 +163,7 @@ ul.features > li .tag { margin-right: 8px; }
     <li><a href="#matrix">Compatibility matrix</a></li>
     <li><a href="#downloads">Downloads and export</a></li>
     <li><a href="#platforms">Platforms</a></li>
+    <li><a href="#configs">Config profiles</a></li>
     <li><a href="#qol">Quality of life</a></li>
     <li><a href="#architecture">Architecture constraints</a></li>
     <li><a href="#data">Data model</a></li>
@@ -381,7 +386,93 @@ ul.features > li .tag { margin-right: 8px; }
     <li>If no API key is configured, the instance hides CurseForge features.</li>
 </ul>
 
-<h2 id="qol">9. Quality of life</h2>
+<h2 id="configs">9. Config profiles <span class="tag p4">P4</span></h2>
+<p>
+    Share <code>options.txt</code> and mod configs the same way as mod lists, and download a ready-to-play
+    instance with both mods and configs. Friends can use most of someone's setup and change only a few things,
+    such as keybinds or mouse sensitivity. Configs keep working when the pack moves to a newer Minecraft version.
+</p>
+<div class="callout">
+    <p><strong>Scope:</strong> client configs only: <code>options.txt</code> and the <code>config/</code> folder. Server configs (<code>defaultconfigs/</code>, a world's <code>serverconfig/</code>) are out of scope for now.</p>
+</div>
+
+<h3>What a config profile is</h3>
+<ul>
+    <li>A named set of settings, owned by a user. It works like a mod list: private, shared or public, with revision history, copying, and following another profile.</li>
+    <li>It stores <strong>only settings that differ from the default</strong>, per file and per setting, for example <code>options.txt → mouseSensitivity = 0.62</code> or <code>sodium-options.json → quality.weather_quality = "FANCY"</code>. It never stores whole config files.</li>
+    <li>Each config file is linked to the mod that owns it, using the mod ID read from the jars at import. When exporting, files for mods that aren't in the mod list are skipped.</li>
+    <li>Each setting remembers the Minecraft version and mod version it was captured with. Automatic updating uses this (see below).</li>
+</ul>
+
+<h3>Layering profiles</h3>
+<ul>
+    <li><strong>Recommended profile:</strong> a mod list can name one recommended config profile.</li>
+    <li><strong>Stacking:</strong> when downloading, you pick any number of profiles in order, and later profiles win for each setting. By default the stack is the list's recommended profile first, then your own profile on top. Example: <em>Heimdal recommended</em> → <em>Jonah's keybinds</em> → <em>Jonah's laptop graphics</em>. The order you picked is remembered per user and list.</li>
+    <li><strong>Following:</strong> a profile can follow another profile and override single settings, or put a setting back to default. Base updates work exactly like following mod lists: automatic or manual, using your global setting with a per-profile override.</li>
+</ul>
+
+<h3>Importing from an instance</h3>
+<ol>
+    <li>Pick a Prism instance folder, a <code>.minecraft</code> folder, or a zip or <code>.mrpack</code> with an overrides folder. The browser reads the files locally.</li>
+    <li>Each file is compared with the known defaults for that mod version (for <code>options.txt</code>, for that Minecraft version). Only <strong>changed settings</strong> are shown, all ticked. You untick the ones you don't want to share. Nothing else is uploaded.</li>
+    <li>Files with no known defaults yet appear in a separate "defaults unknown" group, unticked. You can capture defaults first (see the next section) or tick individual files to include them in full.</li>
+    <li><strong>Personal data is never uploaded</strong>, and these can't be ticked:
+        <ul>
+            <li><code>lastServer</code></li>
+            <li>Files or folders named after a server address or player ID (e.g. SeedCrackerX saves, per-server Inventory Profiles folders, FemaleGenderMod player files)</li>
+            <li>Skin caches, <code>*.backup</code> files, caches and <code>imgui.ini</code> window layouts</li>
+            <li>Any setting whose name looks like a token, password or API key, and files that contain one (e.g. <code>resourceful-config-web.json</code>)</li>
+        </ul>
+    </li>
+</ol>
+
+<h3>Defaults library</h3>
+<ul>
+    <li>It holds the full default config file for each mod version and file path, and the default <code>options.txt</code> for each Minecraft version. It's shared by everyone on the instance.</li>
+    <li>It's filled by <strong>Capture defaults</strong>: download the list's instance with no config profiles, launch it once so the game and mods write their default files, then import that folder as defaults.</li>
+    <li>Captured defaults go through the same personal-data filter. They contain no user settings, so the whole instance can share them. Admins can delete bad entries.</li>
+    <li>The library has two jobs: telling which of your settings are non-default when you import, and acting as up-to-date templates when you export for a newer version.</li>
+</ul>
+
+<h3>Automatic updating to newer versions</h3>
+<p>
+    Mods add, remove and rename settings between versions. Comparing your 1.21.4 and 26.3 instances, only 19 of
+    60 shared config files are identical. Entity Culling's config version went from 7 to 9, Distant Horizons'
+    from 3 to 5, and Minecraft renamed <code>graphicsMode</code> to <code>graphicsPreset</code>. So exporting
+    builds each file fresh, instead of copying an old one:
+</p>
+<ol>
+    <li><strong>Pick a base:</strong> the defaults for the exact mod version being exported. If there aren't any, the newest earlier defaults for that mod. If there are none at all, no base.</li>
+    <li><strong>Apply the profile stack's settings</strong> by setting name. A setting that no longer exists in the base is looked up in a <strong>rename table</strong> (it starts with <code>graphicsMode</code> → <code>graphicsPreset</code> and can be extended). If there's no rename, it's dropped and reported.</li>
+    <li><strong><code>options.txt</code>:</strong> if there's no default for the target Minecraft version, the file keeps the data version it was captured with (its <code>version:</code> line), so Minecraft upgrades it itself on first launch.</li>
+    <li><strong>No base at all:</strong> the file is written with only the changed settings. Most config libraries fill in missing settings with defaults. These files are reported as "partial".</li>
+</ol>
+<p>Each export shows a report of dropped settings, renamed settings, partial files, and files skipped because their mod isn't in the list.</p>
+
+<h3>Config editor</h3>
+<ul>
+    <li>Files are grouped by mod, with search. Each changed setting shows its value next to the default.</li>
+    <li>You can add a setting by picking it from the defaults file, and remove a setting to put it back to default.</li>
+    <li><strong><code>options.txt</code> view:</strong> keybinds grouped by category and mod, with a "press a key" input. Common settings (sensitivity, FOV, render distance, GUI scale and so on) are normal inputs, and everything else is a table.</li>
+    <li><strong>In a following profile:</strong> the base value is shown, overrides are highlighted, and "Use base" removes an override.</li>
+</ul>
+
+<h3>Downloading</h3>
+<ul>
+    <li>The download dialog gets a config stack picker. Configs only apply to the <strong>client pack</strong>.</li>
+    <li><strong><code>.mrpack</code> with configs (recommended):</strong> <code>overrides/options.txt</code> and <code>overrides/config/…</code> are added to the existing <code>.mrpack</code> export. Prism, the Modrinth App and others import it as a complete instance. Jars download from Modrinth, so the file stays small. CurseForge jars are left out, as before.</li>
+    <li><strong>Configs-only zip:</strong> <code>options.txt</code> plus <code>config/</code>, to drop into an existing instance.</li>
+    <li>Resource packs listed in <code>options.txt</code> (e.g. <code>file/VanillaTweaks_…zip</code>) aren't included. Only the setting that lists them is.</li>
+</ul>
+
+<h3>Formats</h3>
+<ul>
+    <li><strong>Read setting by setting:</strong> <code>options.txt</code>, JSON, JSON5/JSONC, TOML, <code>.properties</code>, and simple <code>key=value</code> or Forge-style <code>.cfg</code>.</li>
+    <li><strong>When writing a file,</strong> the base file's layout, order and comments are kept, and only values are replaced.</li>
+    <li><strong>Other formats</strong> (plain-text lists, images, unknown types) are handled as one setting: the whole file. A changed file counts as one changed setting.</li>
+</ul>
+
+<h2 id="qol">10. Quality of life</h2>
 <ul class="features">
     <li><span class="tag p1">P1</span><strong>Client-side cache</strong> of API responses in IndexedDB, with a TTL (for example 1 hour for versions and 24 hours for project info), so reopening a list is nearly instant. A "Refresh" button bypasses the cache.</li>
     <li><span class="tag p1">P1</span><strong>Autosave of drafts</strong> locally, so a closed tab doesn't lose unsaved edits.</li>
@@ -391,10 +482,10 @@ ul.features > li .tag { margin-right: 8px; }
     <li><span class="tag p2">P2</span><strong>Shareable matrix state</strong>: the URL keeps the loader, target version and filters, so a link opens the same view.</li>
     <li><span class="tag p3">P3</span><strong>Import from a mods folder</strong>: drop jar files on the page. The browser hashes them locally and matches them through <code>POST /v2/version_files</code>. Files never leave the browser.</li>
     <li><span class="tag p3">P3</span><strong>List comparison</strong>: diff two lists, or two revisions of one list.</li>
-    <li><span class="tag p4">P4</span><strong>Activity notifications</strong>, such as "a friend edited a shared list".</li>
+    <li><span class="tag p5">P5</span><strong>Activity notifications</strong>, such as "a friend edited a shared list".</li>
 </ul>
 
-<h2 id="architecture">10. Architecture constraints</h2>
+<h2 id="architecture">11. Architecture constraints</h2>
 <p>These constraints come from the home lab setup and will guide the stack choice.</p>
 <div class="table-wrap">
 <table>
@@ -409,11 +500,11 @@ ul.features > li .tag { margin-right: 8px; }
 
 <h3>Responsibilities</h3>
 <ul>
-    <li><strong>Browser:</strong> all Modrinth requests, the matrix calculation, the API cache, zip building and jar hashing.</li>
-    <li><strong>Server:</strong> Google OAuth, sessions, invites, list storage and permissions, revisions, and the CurseForge proxy.</li>
+    <li><strong>Browser:</strong> all Modrinth requests, the matrix calculation, the API cache, zip building and jar hashing. Also reading instance folders and comparing configs with defaults, so only chosen settings are uploaded.</li>
+    <li><strong>Server:</strong> Google OAuth, sessions, invites, list storage and permissions, revisions, and the CurseForge proxy. Also config profiles and the defaults library: small text, stored once per unique file.</li>
 </ul>
 
-<h2 id="data">11. Data model (logical)</h2>
+<h2 id="data">12. Data model (logical)</h2>
 <pre><code>User          id, google_sub, email, handle, display_name, avatar_url,
               role (user|admin), created_at, disabled_at
 
@@ -441,13 +532,41 @@ Alternative   platform (modrinth|curseforge), project_id, slug,
               cached_title, cached_icon, project_type,
               side_mode (auto|fallback|force), side (client|server|both),
               pinned_version_id, note
-DownloadPick  mc_version, pack_side (client|server), entry_id → alternative index</code></pre>
+DownloadPick  mc_version, pack_side (client|server), entry_id → alternative index
+
+-- config profiles (P4) --
+Modlist       + recommended_config → ConfigProfile
+
+ConfigProfile id, owner → User, name, description, visibility,
+              base_profile → ConfigProfile, follow_mode, base_revision,
+              current_revision, created_at, updated_at
+
+ConfigShare   profile → ConfigProfile, user → User, role (viewer|editor)
+
+ConfigRevision id, profile → ConfigProfile, number, author → User,
+              message, created_at, content (JSON, see below)
+
+-- inside ConfigRevision.content --
+files         { "&lt;path&gt;": {
+                  mod: project id | "minecraft" | null,
+                  format: options|json|json5|toml|properties|cfg|whole,
+                  captured: { game_version, mod_version },
+                  settings: { "&lt;key path&gt;": value },
+                  reset: [ "&lt;key path&gt;" ]          -- following profiles only
+                  whole_file: blob hash                -- format "whole" only
+              } }
+
+ConfigBlob    hash, data                  -- whole files, deduplicated
+ConfigDefault mod (project id | "minecraft"), mod_version | game_version,
+              path, format, blob → ConfigBlob, captured_by → User, created_at
+ConfigRename  mod, from_key, to_key, since_version
+ConfigStack   user → User, modlist → Modlist, profiles (ordered ids)</code></pre>
 <p>
     Storing list content as a JSON snapshot per revision keeps history simple and matches how lists are edited
     (as a whole). Lists are small, so storage size is not a concern.
 </p>
 
-<h2 id="phases">12. Phases</h2>
+<h2 id="phases">13. Phases</h2>
 <div class="table-wrap">
 <table>
     <tr><th>Phase</th><th>Contents</th><th>Done when</th></tr>
@@ -467,14 +586,19 @@ DownloadPick  mc_version, pack_side (client|server), entry_id → alternative in
         <td>Lists cover a full modpack across both platforms.</td>
     </tr>
     <tr>
-        <td><span class="tag p4">P4</span> Nice to have</td>
+        <td><span class="tag p4">P4</span> Config profiles</td>
+        <td>Client config profiles (settings that differ from defaults only), import from an instance with personal-data filtering, defaults library with "Capture defaults", recommended profile per list, stacking in order, following with per-setting overrides, editor with an <code>options.txt</code> view, automatic updating with rename table and export report, <code>.mrpack</code> with configs and configs-only zip.</td>
+        <td>You download a 26.3 instance with your mods and configs, and a friend's profile that follows yours with different sensitivity and keybinds still works after the pack moves to a newer version.</td>
+    </tr>
+    <tr>
+        <td><span class="tag p5">P5</span> Nice to have</td>
         <td>Notifications, list comparison, extra login providers.</td>
         <td>-</td>
     </tr>
 </table>
 </div>
 
-<h2 id="bugs">13. Known issues in v1 (fix in the rewrite)</h2>
+<h2 id="bugs">14. Known issues in v1 (fix in the rewrite)</h2>
 <ul>
     <li>Mod links are always built as <code>/mod/&lt;slug&gt;</code>, which is wrong for plugins, resource packs and other types.</li>
     <li><code>optional</code> sides are treated as unknown (see <a href="#matrix">§6</a>).</li>
@@ -486,7 +610,7 @@ DownloadPick  mc_version, pack_side (client|server), entry_id → alternative in
     <li>Loader and snapshot settings aren't remembered between visits.</li>
 </ul>
 
-<h2 id="open">14. Open questions</h2>
+<h2 id="open">15. Open questions</h2>
 <ul>
     <li><s>Domain and tunnel</s>. Answered: nginx reverse proxy on the home lab. nginx serves the app's static files compressed (brotli or gzip) with long-lived cache headers, so each browser downloads the bundle once.</li>
     <li>Should public lists be listed or searchable on an "Explore" page, or reachable only by link?</li>
