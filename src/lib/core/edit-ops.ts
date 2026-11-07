@@ -104,6 +104,17 @@ export function setSide(content: ListContent, index: number, slug: string, mode:
 	return withEntries(content, entries);
 }
 
+export function setPin(content: ListContent, index: number, slug: string, pin: string): ListContent {
+	const entries = content.entries.map(clone);
+	const alternative = entries[index].alternatives.find((alt) => alt.slug === slug);
+	if (alternative) {
+		const value = pin.trim().replace(/[\]\s]/g, '').slice(0, 60);
+		if (value) alternative.pin = value;
+		else delete alternative.pin;
+	}
+	return withEntries(content, entries);
+}
+
 export function renameSection(content: ListContent, from: string, to: string): ListContent {
 	const name = to.trim().slice(0, 80);
 	const entries = content.entries.map((entry) => {

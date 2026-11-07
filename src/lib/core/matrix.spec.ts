@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blockersFor, bestGameVersion, buildMatrix, countSupport, GameVersionInfo, type ProjectData } from './matrix';
+import { blockersFor, bestGameVersion, buildMatrix, conflictsFor, countSupport, GameVersionInfo, lastUpdated, updatesSince, type ProjectData } from './matrix';
 import { modrinthSide, packMembership, resolveSide } from './sides';
 import { parseText } from './text-format';
 import type { ModrinthProject, ModrinthVersion } from './types';
@@ -113,6 +113,19 @@ describe('buildMatrix', () => {
 		expect(betaFree.gameVersions).toEqual(['1.21.1']);
 	});
 
+	it('uses only the pinned version when an alternative is pinned', () => {
+		const pinned = parseText('https://modrinth.com/mod/sodium [=v-old]').content.entries;
+		const old = version('sodium', ['1.21.1'], { version_number: 'v-old', version_type: 'alpha' });
+		const pinnedMatrix = buildMatrix(
+			pinned,
+			new Map([['sodium', { ok: true, project: project('sodium'), versions: [version('sodium', ['26.3']), old] }]]),
+			{ loader: 'fabric', includeSnapshots: false, channels: ['release'] },
+			tags
+		);
+		expect(pinnedMatrix.gameVersions).toEqual(['1.21.1']);
+		expect(pinnedMatrix.rows[0].cells.get('1.21.1')![0].version.version_number).toBe('v-old');
+	});
+
 	it('picks a release over newer betas and alphas', () => {
 		const option = matrix.rows[0].cells.get('1.21.1')![0];
 		expect(option.version.version_type).toBe('release');
@@ -143,5 +156,30 @@ describe('buildMatrix', () => {
 			['dh|bobby', '1.21.11'],
 			['forgeonly', null]
 		]);
+	});
+});
+
+describe('conflicts and updates', () => {
+	const entries = parseText('https://modrinth.com/mod/optifabric\nhttps://modrinth.com/mod/sodium').content.entries;
+	const sodiumOld = version('sodium', ['26.3'], { date_published: '2026-01-01T00:00:00Z' });
+	const sodiumNew = version('sodium', ['26.3'], { date_published: '2026-05-01T00:00:00Z' });
+	const optifabric = version('optifabric', ['26.3'], {
+		dependencies: [{ project_id: 'id-sodium', version_id: null, file_name: null, dependency_type: 'incompatible' }]
+	});
+	const data = new Map<string, ProjectData>([
+		['optifabric', { ok: true, project: project('optifabric'), versions: [optifabric] }],
+		['sodium', { ok: true, project: project('sodium'), versions: [sodiumOld, sodiumNew] }]
+	]);
+	const matrix = buildMatrix(entries, data, { loader: 'fabric', includeSnapshots: false }, tags);
+
+	it('finds incompatible pairs once', () => {
+		expect(conflictsFor(matrix, '26.3', new Set()).map((c) => [c.row.key, c.other.key])).toEqual([['optifabric', 'sodium']]);
+		expect(conflictsFor(matrix, '26.3', new Set(['sodium']))).toEqual([]);
+	});
+
+	it('lists newer versions than the downloaded ones', () => {
+		const updates = updatesSince(matrix, '26.3', { 'id-sodium': sodiumOld.id, 'id-optifabric': optifabric.id });
+		expect(updates.map((u) => [u.row.key, u.option.version.id])).toEqual([['sodium', sodiumNew.id]]);
+		expect(lastUpdated(matrix.rows[1], data)).toBe('2026-05-01T00:00:00Z');
 	});
 });

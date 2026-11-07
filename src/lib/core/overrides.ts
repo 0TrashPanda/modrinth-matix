@@ -57,10 +57,16 @@ export function applyOverrides(base: ListContent, overrides: ListContent): Overr
 			if (!existing) {
 				target.alternatives.push({ ...alternative });
 				changed = true;
-			} else if (alternative.sideMode !== 'auto' && (existing.sideMode !== alternative.sideMode || existing.side !== alternative.side)) {
-				existing.sideMode = alternative.sideMode;
-				existing.side = alternative.side;
-				changed = true;
+			} else {
+				if (alternative.sideMode !== 'auto' && (existing.sideMode !== alternative.sideMode || existing.side !== alternative.side)) {
+					existing.sideMode = alternative.sideMode;
+					existing.side = alternative.side;
+					changed = true;
+				}
+				if (alternative.pin && existing.pin !== alternative.pin) {
+					existing.pin = alternative.pin;
+					changed = true;
+				}
 			}
 		}
 		if (!changed) {

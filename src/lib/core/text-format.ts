@@ -1,4 +1,5 @@
-import type { Alternative, Entry, KnownSide, ListContent, RemovedRef, SideMode } from './types';
+import { CF_TYPE_BY_PATH, cfProjectUrl } from './curseforge';
+import { dataKey, type Alternative, type Entry, type KnownSide, type ListContent, type RemovedRef, type SideMode } from './types';
 
 /**
  * The plain-text list format from v1, kept so old pCloud files import unchanged:
@@ -14,6 +15,7 @@ import type { Alternative, Entry, KnownSide, ListContent, RemovedRef, SideMode }
  *   performance mods:                        <- section heading (or "## performance mods")
  *   https://modrinth.com/mod/x, needs testing  <- plain text after a comma is a note
  *   https://modrinth.com/mod/x [opt]         <- optional: not counted for the best version
+ *   https://modrinth.com/mod/x [=1.3.2]      <- pinned to that mod version
  *
  * In a list that follows another list, a line starting with `-` removes those
  * mods from the base list. A leading `+` is allowed for additions and ignored.
@@ -21,6 +23,7 @@ import type { Alternative, Entry, KnownSide, ListContent, RemovedRef, SideMode }
 
 const SIDE_TAG_PATTERN = /\[\s*(!?)([scb])\s*\]/gi;
 const MODRINTH_HOSTS = new Set(['modrinth.com', 'www.modrinth.com']);
+const CURSEFORGE_HOSTS = new Set(['curseforge.com', 'www.curseforge.com']);
 const PROJECT_TYPES = new Set([
 	'mod',
 	'plugin',
@@ -44,7 +47,11 @@ export interface ParseResult {
 	warnings: ParseWarning[];
 }
 
+const PIN_TAG = /\[\s*=\s*([^\]\s]+)\s*\]/;
+
 export function parseAlternative(raw: string): Alternative | null {
+	const pin = raw.match(PIN_TAG)?.[1];
+	raw = raw.replace(PIN_TAG, '');
 	let forced: KnownSide | undefined;
 	let fallback: KnownSide | undefined;
 	for (const match of raw.matchAll(SIDE_TAG_PATTERN)) {
@@ -62,9 +69,25 @@ export function parseAlternative(raw: string): Alternative | null {
 	} catch {
 		return null;
 	}
-	if (!MODRINTH_HOSTS.has(url.hostname.toLowerCase())) return null;
-
 	const parts = url.pathname.split('/').filter(Boolean);
+	const host = url.hostname.toLowerCase();
+
+	if (CURSEFORGE_HOSTS.has(host)) {
+		// curseforge.com/minecraft/mc-mods/jei
+		if (parts[0]?.toLowerCase() !== 'minecraft' || !parts[2] || !CF_TYPE_BY_PATH[parts[1]?.toLowerCase()]) return null;
+		const alternative: Alternative = {
+			platform: 'curseforge',
+			slug: parts[2],
+			projectType: CF_TYPE_BY_PATH[parts[1].toLowerCase()],
+			sideMode: forced ? 'force' : fallback ? 'fallback' : 'auto'
+		};
+		const cfSide = forced ?? fallback;
+		if (cfSide) alternative.side = cfSide;
+		if (pin) alternative.pin = pin.slice(0, 60);
+		return alternative;
+	}
+
+	if (!MODRINTH_HOSTS.has(host)) return null;
 	if (parts.length === 0) return null;
 
 	// /mod/sodium/versions -> sodium. v1 took the last segment, which broke these links.
@@ -81,6 +104,7 @@ export function parseAlternative(raw: string): Alternative | null {
 	const alternative: Alternative = { platform: 'modrinth', slug, projectType, sideMode };
 	const side = forced ?? fallback;
 	if (side) alternative.side = side;
+	if (pin) alternative.pin = pin.slice(0, 60);
 	return alternative;
 }
 
@@ -122,7 +146,7 @@ export function parseText(text: string): ParseResult {
 				if (!trimmed) continue;
 				const alternative = parseAlternative(trimmed);
 				if (alternative) removals.push({ slug: alternative.slug, projectType: alternative.projectType });
-				else warnings.push({ line: lineNumber, message: `Not a Modrinth project URL: ${trimmed}` });
+				else warnings.push({ line: lineNumber, message: `Not a Modrinth or CurseForge project URL: ${trimmed}` });
 			}
 			return;
 		}
@@ -139,13 +163,13 @@ export function parseText(text: string): ParseResult {
 			if (!alternative) {
 				// Plain text after a comma is a note; anything URL-like is a mistake worth flagging.
 				if (LOOKS_LIKE_URL.test(trimmed)) {
-					warnings.push({ line: lineNumber, message: `Not a Modrinth project URL: ${trimmed}` });
+					warnings.push({ line: lineNumber, message: `Not a Modrinth or CurseForge project URL: ${trimmed}` });
 				} else {
 					noteParts.push(trimmed);
 				}
 				continue;
 			}
-			const key = alternative.slug.toLowerCase();
+			const key = dataKey(alternative);
 			if (seen.has(key)) {
 				warnings.push({
 					line: lineNumber,
@@ -174,10 +198,13 @@ export function parseText(text: string): ParseResult {
 }
 
 export function serializeAlternative(alternative: Alternative): string {
-	const url = `https://modrinth.com/${alternative.projectType}/${alternative.slug}`;
-	if (!alternative.side || alternative.sideMode === 'auto') return url;
-	const tag = SIDE_TO_TAG[alternative.side];
-	return alternative.sideMode === 'force' ? `${url} [!${tag}]` : `${url} [${tag}]`;
+	let line = projectUrl(alternative);
+	if (alternative.side && alternative.sideMode !== 'auto') {
+		const tag = SIDE_TO_TAG[alternative.side];
+		line += alternative.sideMode === 'force' ? ` [!${tag}]` : ` [${tag}]`;
+	}
+	if (alternative.pin) line += ` [=${alternative.pin}]`;
+	return line;
 }
 
 /** One entry as a text line, without its section. Also used to compare entries. */
@@ -220,6 +247,7 @@ export function serializeText(content: ListContent): string {
 	return lines.join('\n');
 }
 
-export function projectUrl(alternative: Alternative): string {
+export function projectUrl(alternative: Pick<Alternative, 'platform' | 'projectType' | 'slug'>): string {
+	if (alternative.platform === 'curseforge') return cfProjectUrl(alternative.projectType, alternative.slug);
 	return `https://modrinth.com/${alternative.projectType}/${alternative.slug}`;
 }

@@ -7,8 +7,11 @@
 		bestGameVersion,
 		blockersFor,
 		buildMatrix,
+		conflictsFor,
 		countSupport,
 		GameVersionInfo,
+		lastUpdated,
+		updatesSince,
 		type CellOption,
 		type Channel,
 		type Matrix,
@@ -18,7 +21,7 @@
 	import { packItems } from '#lib/core/downloads.ts';
 	import { SIDE_LABEL, SIDE_TITLE } from '#lib/core/sides.ts';
 	import { projectUrl } from '#lib/core/text-format.ts';
-	import { LOADERS, type Entry, type ListSettings, type Loader } from '#lib/core/types.ts';
+	import { LOADERS, type Entry, type ListSettings, type Loader, type Platform } from '#lib/core/types.ts';
 	import { getGameVersionTags, loadProjects, type LoadProgress } from '#lib/client/modrinth.ts';
 	import { loadLocal, saveLocal } from '#lib/client/storage.ts';
 	import DownloadDialog from './DownloadDialog.svelte';
@@ -89,15 +92,18 @@
 		}
 	});
 
-	const slugKey = $derived(entries.flatMap((entry) => entry.alternatives.map((alt) => alt.slug)).join(','));
+	// Reload only when the set of projects changes, not on every edit to notes or sides.
+	const slugKey = $derived(
+		JSON.stringify(entries.flatMap((entry) => entry.alternatives.map(({ platform, slug, projectType }) => [platform, slug, projectType])))
+	);
 
 	async function load(force = false) {
 		const id = ++loadId;
-		const slugs = slugKey ? slugKey.split(',') : [];
-		progress = { done: 0, total: slugs.length };
+		const refs = (JSON.parse(slugKey) as [Platform, string, string][]).map(([platform, slug, projectType]) => ({ platform, slug, projectType }));
+		progress = { done: 0, total: refs.length };
 		const [tagList, result] = await Promise.all([
 			getGameVersionTags(),
-			loadProjects(slugs, {
+			loadProjects(refs, {
 				force,
 				onProgress: (p) => {
 					if (id === loadId) progress = p;
@@ -187,6 +193,57 @@
 		matrix && active && !countOptional ? matrix.rows.filter((row) => row.entry.optional && !disabled.has(row.key) && !row.cells.has(active)) : []
 	);
 
+	const conflicts = $derived(matrix && active ? conflictsFor(matrix, active, excluded) : []);
+
+	/** Best version on each loader, with the same filters, to answer "would another loader be newer?". */
+	const otherLoaders = $derived.by(() => {
+		if (!data) return [];
+		return LOADERS.filter((other) => other !== loader).map((other) => {
+			const alt = buildMatrix(entries, data!, { loader: other, includeSnapshots, channels: CHANNEL_SETS[channel] }, tags);
+			const altCounts = countSupport(alt, excluded);
+			const altBest = bestGameVersion(alt, altCounts);
+			return { loader: other, best: altBest, count: altBest ? (altCounts.get(altBest) ?? 0) : 0 };
+		});
+	});
+
+	// Mods with no new version (for any loader or game version) in a year.
+	const STALE_AFTER = 365 * 86_400_000;
+	const stale = $derived.by(() => {
+		const out = new Map<string, string>();
+		if (!data || !matrix) return out;
+		for (const row of matrix.rows) {
+			const last = lastUpdated(row, data);
+			if (last && Date.now() - Date.parse(last) > STALE_AFTER) out.set(row.key, last.slice(0, 10));
+		}
+		return out;
+	});
+
+	interface DownloadRecord {
+		gameVersion: string;
+		pack: string;
+		loader: string;
+		at: number;
+		versions: Record<string, string>;
+	}
+	let lastDownload = $state(untrack(() => loadLocal<DownloadRecord | null>(`downloaded:${storageKey}`, null)));
+	let updatesOpen = $state(false);
+	const updates = $derived(
+		fullMatrix && lastDownload && lastDownload.loader === loader
+			? updatesSince(fullMatrix, lastDownload.gameVersion, lastDownload.versions)
+			: []
+	);
+
+	function closeDownload() {
+		downloadOpen = false;
+		lastDownload = loadLocal<DownloadRecord | null>(`downloaded:${storageKey}`, null);
+	}
+
+	function openUpdateDownload() {
+		if (!lastDownload) return;
+		selected = lastDownload.gameVersion;
+		downloadOpen = true;
+	}
+
 	const packCounts = $derived.by(() => {
 		if (!matrix || !active) return null;
 		const count = (pack: 'client' | 'server') =>
@@ -260,6 +317,29 @@
 	</div>
 {/if}
 
+{#if updates.length > 0 && lastDownload}
+	<div class="alert info updates">
+		<div class="row">
+			<span class="grow">
+				<strong>{updates.length} mod{updates.length === 1 ? ' has a' : 's have'} newer version{updates.length === 1 ? '' : 's'}</strong>
+				since your last download ({lastDownload.gameVersion} {lastDownload.pack} pack, {new Date(lastDownload.at).toLocaleDateString()}).
+				<button class="link" onclick={() => (updatesOpen = !updatesOpen)}>{updatesOpen ? 'Hide' : 'Show'}</button>
+			</span>
+			<button class="btn sm primary" onclick={openUpdateDownload}>Download {lastDownload.gameVersion}…</button>
+		</div>
+		{#if updatesOpen}
+			<ul>
+				{#each updates as update (update.option.version.id)}
+					<li>
+						{update.option.project.title} → {update.option.version.version_number}
+						<a href="https://modrinth.com/{update.option.project.project_type}/{update.option.project.slug}/version/{update.option.version.id}" target="_blank" rel="noopener">changelog</a>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</div>
+{/if}
+
 {#if entries.length === 0}
 	<div class="card empty">This list is empty. Add some mods to see the matrix.</div>
 {:else if matrix}
@@ -320,6 +400,10 @@
 															>
 														{/each}
 														{#if row.entry.optional}<span class="badge grey tiny">optional</span>{/if}
+														{#each row.entry.alternatives.filter((alt) => alt.pin) as pinned (pinned.slug)}
+															<span class="badge blue tiny" title="{pinned.slug} is pinned to {pinned.pin}">pinned {pinned.pin}</span>
+														{/each}
+														{#if stale.has(row.key)}<span class="badge warn tiny" title="No new version since {stale.get(row.key)}">stale</span>{/if}
 														{#if row.entry.note}<span class="note-icon" title={row.entry.note}>✎</span>{/if}
 														{#if row.errors.length > 0}<span class="warn-icon" title={row.errors.join('\n')}>⚠</span>{/if}
 													</span>
@@ -425,6 +509,23 @@
 					{/each}
 				{/each}
 
+				{#if conflicts.length > 0}
+					<h4>Conflicts on {active}</h4>
+					{#each conflicts as conflict (`${conflict.row.key}×${conflict.other.key}`)}
+						<div class="blocker conflict">{rowTitle(conflict.row, 0)} ✕ {rowTitle(conflict.other, 0)}<small>Marked incompatible on Modrinth</small></div>
+					{/each}
+				{/if}
+
+				{#if otherLoaders.length > 0}
+					<h4>Other loaders</h4>
+					{#each otherLoaders as other (other.loader)}
+						<button class="loader-row" onclick={() => (loader = other.loader)} title="Switch to {LOADER_NAMES[other.loader]}">
+							<span>{LOADER_NAMES[other.loader]}</span>
+							<span class="muted">{other.best ? `best ${other.best} · ${other.count}/${countedRows}` : 'nothing supported'}</span>
+						</button>
+					{/each}
+				{/if}
+
 				{#if missingOptional.length > 0}
 					<h4>Optional, missing here</h4>
 					<div class="muted small">{missingOptional.map((row) => rowTitle(row, 0)).join(', ')}</div>
@@ -443,7 +544,7 @@
 {/if}
 
 {#if downloadOpen && matrix && active}
-	<DownloadDialog {matrix} gameVersion={active} {disabled} {loader} {name} {storageKey} onclose={() => (downloadOpen = false)} />
+	<DownloadDialog {matrix} gameVersion={active} {disabled} {loader} {name} {storageKey} onclose={closeDownload} />
 {/if}
 
 <style>
@@ -716,6 +817,41 @@
 	}
 	.small {
 		font-size: 0.85rem;
+	}
+	.blocker.conflict {
+		display: block;
+		background: var(--danger-soft);
+	}
+	.loader-row {
+		display: flex;
+		justify-content: space-between;
+		gap: 8px;
+		width: 100%;
+		padding: 6px 2px;
+		background: none;
+		border: none;
+		border-bottom: 1px solid var(--line);
+		font-size: 0.85rem;
+		cursor: pointer;
+		text-align: left;
+	}
+	.loader-row:hover {
+		color: var(--accent);
+	}
+	.updates {
+		margin-bottom: 14px;
+	}
+	.updates ul {
+		margin: 8px 0 0;
+		padding-left: 20px;
+	}
+	.link {
+		background: none;
+		border: none;
+		color: inherit;
+		text-decoration: underline;
+		cursor: pointer;
+		padding: 0;
 	}
 	.wide {
 		width: 100%;

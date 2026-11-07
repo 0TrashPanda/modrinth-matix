@@ -1,5 +1,6 @@
 import { resolveSide } from './sides';
 import {
+	dataKey,
 	entryKey,
 	type Alternative,
 	type Entry,
@@ -49,7 +50,9 @@ export function isBetterVersion(candidate: ModrinthVersion, current: ModrinthVer
 }
 
 export function supportsLoader(project: ModrinthProject, version: ModrinthVersion, loader: string): boolean {
-	return LOADER_INDEPENDENT.has(project.project_type) || version.loaders.includes(loader);
+	if (LOADER_INDEPENDENT.has(project.project_type) || version.loaders.includes(loader)) return true;
+	// Quilt runs Fabric mods, as Modrinth's own launcher assumes.
+	return loader === 'quilt' && version.loaders.includes('fabric');
 }
 
 export class GameVersionInfo {
@@ -93,7 +96,7 @@ export function buildMatrix(
 		const projects: (ModrinthProject | null)[] = [];
 
 		for (const alternative of entry.alternatives) {
-			const result = data.get(alternative.slug.toLowerCase());
+			const result = data.get(dataKey(alternative));
 			if (!result) {
 				projects.push(null);
 				continue;
@@ -111,7 +114,9 @@ export function buildMatrix(
 
 			for (const version of versions) {
 				if (!supportsLoader(project, version, settings.loader)) continue;
-				if (!channels.has(version.version_type)) continue;
+				if (alternative.pin) {
+					if (version.version_number !== alternative.pin && version.id !== alternative.pin) continue;
+				} else if (!channels.has(version.version_type)) continue;
 				for (const gameVersion of version.game_versions) {
 					if (!settings.includeSnapshots && !gameVersionInfo.isRelease(gameVersion)) continue;
 					const current = best.get(gameVersion);
@@ -177,4 +182,69 @@ export function blockersFor(matrix: Matrix, gameVersion: string, disabled: Set<s
 
 export function primaryFile(version: ModrinthVersion) {
 	return version.files.find((file) => file.primary) ?? version.files[0] ?? null;
+}
+
+export interface Conflict {
+	row: MatrixRow;
+	other: MatrixRow;
+}
+
+/** Pairs of counted rows whose versions for `gameVersion` declare each other incompatible. */
+export function conflictsFor(matrix: Matrix, gameVersion: string, excluded: Set<string>): Conflict[] {
+	const rows = matrix.rows.filter((row) => !excluded.has(row.key) && row.cells.has(gameVersion));
+	const owner = new Map<string, MatrixRow>();
+	for (const row of rows) for (const option of row.cells.get(gameVersion)!) owner.set(option.project.id, row);
+
+	const conflicts: Conflict[] = [];
+	const seen = new Set<string>();
+	for (const row of rows) {
+		for (const option of row.cells.get(gameVersion)!) {
+			for (const dep of option.version.dependencies) {
+				if (dep.dependency_type !== 'incompatible' || !dep.project_id) continue;
+				const other = owner.get(dep.project_id);
+				if (!other || other === row) continue;
+				const key = [row.key, other.key].sort().join('×');
+				if (seen.has(key)) continue;
+				seen.add(key);
+				conflicts.push({ row, other });
+			}
+		}
+	}
+	return conflicts;
+}
+
+export interface Update {
+	row: MatrixRow;
+	option: CellOption;
+	previousVersionId: string;
+}
+
+/**
+ * Mods whose best version for `gameVersion` is newer than the one last downloaded.
+ * `downloaded` maps project ID to the version ID that was downloaded.
+ */
+export function updatesSince(matrix: Matrix, gameVersion: string, downloaded: Record<string, string>): Update[] {
+	const updates: Update[] = [];
+	for (const row of matrix.rows) {
+		for (const option of row.cells.get(gameVersion) ?? []) {
+			const previous = downloaded[option.project.id];
+			if (previous && previous !== option.version.id && !option.alternative.pin) {
+				updates.push({ row, option, previousVersionId: previous });
+			}
+		}
+	}
+	return updates;
+}
+
+/** Date of the newest version of any of the row's projects, on any loader or game version. */
+export function lastUpdated(row: MatrixRow, data: Map<string, ProjectData>): string | null {
+	let latest: string | null = null;
+	for (const alternative of row.entry.alternatives) {
+		const result = data.get(dataKey(alternative));
+		if (!result?.ok) continue;
+		for (const version of result.versions) {
+			if (!latest || version.date_published > latest) latest = version.date_published;
+		}
+	}
+	return latest;
 }

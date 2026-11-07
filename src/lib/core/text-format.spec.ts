@@ -40,7 +40,7 @@ describe('parseAlternative', () => {
 	});
 
 	it('rejects other sites', () => {
-		expect(parseAlternative('https://curseforge.com/minecraft/mc-mods/jei')).toBeNull();
+		expect(parseAlternative('https://github.com/gnembon/fabric-carpet')).toBeNull();
 		expect(parseAlternative('not a url at all')).toBeNull();
 	});
 });
@@ -63,7 +63,7 @@ describe('parseText', () => {
 			['sodium']
 		]);
 		expect(warnings).toEqual([
-			{ line: 5, message: 'Not a Modrinth project URL: https://example.com/nope' },
+			{ line: 5, message: 'Not a Modrinth or CurseForge project URL: https://example.com/nope' },
 			{ line: 6, message: 'sodium is already on line 2' }
 		]);
 	});

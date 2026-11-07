@@ -15,6 +15,10 @@ export const variables = defineEnvVars({
 		description: 'OAuth client secret from the Google Cloud console.',
 		schema: optional
 	},
+	CURSEFORGE_API_KEY: {
+		description: 'CurseForge API key (console.curseforge.com). CurseForge support is hidden without it.',
+		schema: optional
+	},
 	ADMIN_EMAIL: {
 		description:
 			'Google account that becomes admin on first sign-in, without an invite. If unset, the first account to sign in becomes admin.',

@@ -1,7 +1,7 @@
 import { clear, createStore, get, set, type UseStore } from 'idb-keyval';
 import type { ProjectData } from '#lib/core/matrix.ts';
 import type { DependencyApi } from '#lib/core/downloads.ts';
-import type { GameVersionTag, ModrinthProject, ModrinthVersion } from '#lib/core/types.ts';
+import { dataKey, type Alternative, type GameVersionTag, type ModrinthProject, type ModrinthVersion } from '#lib/core/types.ts';
 
 /**
  * All Modrinth requests run in the browser, so they count against each user's own
@@ -86,12 +86,12 @@ export class ApiError extends Error {
 	}
 }
 
-async function request<T>(path: string): Promise<T> {
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
 	return limited(async () => {
 		for (let attempt = 0; ; attempt++) {
 			let response: Response;
 			try {
-				response = await fetch(`${API}${path}`);
+				response = await fetch(`${API}${path}`, init);
 			} catch {
 				if (attempt < 2) continue;
 				throw new ApiError("Couldn't reach Modrinth", 0);
@@ -221,25 +221,87 @@ export interface LoadProgress {
 	total: number;
 }
 
-/** Fetches project info and versions for every slug. Failures are reported per slug. */
+type ProjectRef = Pick<Alternative, 'platform' | 'slug' | 'projectType'>;
+
+/**
+ * Fetches project info and versions for every alternative, keyed by dataKey().
+ * Modrinth is called from the browser; CurseForge goes through the server's cached proxy.
+ */
 export async function loadProjects(
-	slugs: string[],
+	refs: ProjectRef[],
 	options: { force?: boolean; onProgress?: (progress: LoadProgress) => void } = {}
 ): Promise<Map<string, ProjectData>> {
+	const curseforge = refs.filter((ref) => ref.platform === 'curseforge');
+	const modrinthSlugs = refs.filter((ref) => ref.platform !== 'curseforge').map((ref) => ref.slug);
+	const progress = { done: 0, total: new Set(refs.map(dataKey)).size };
+	const report = (p: LoadProgress) => options.onProgress?.(p);
+	report({ ...progress });
+
+	const [modrinth, cf] = await Promise.all([
+		loadModrinth(modrinthSlugs, options.force ?? false, () => {
+			progress.done++;
+			report({ ...progress });
+		}),
+		loadCurseforgeRefs(curseforge).then((map) => {
+			progress.done += map.size;
+			report({ ...progress });
+			return map;
+		})
+	]);
+	return new Map([...modrinth, ...cf]);
+}
+
+async function loadCurseforgeRefs(refs: ProjectRef[]): Promise<Map<string, ProjectData>> {
+	const out = new Map<string, ProjectData>();
+	if (refs.length === 0) return out;
+	const unique = [...new Map(refs.map((ref) => [dataKey(ref), ref])).values()];
+	try {
+		const response = await fetch('/api/curseforge/projects', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ slugs: unique.map(({ slug, projectType }) => ({ slug, projectType })), ids: [] })
+		});
+		if (!response.ok) {
+			const reason = response.status === 401 ? 'Sign in to use CurseForge' : response.status === 404 ? 'CurseForge is not set up on this server' : `CurseForge error ${response.status}`;
+			throw new Error(reason);
+		}
+		const data = (await response.json()) as Record<string, ProjectData>;
+		for (const ref of unique) out.set(dataKey(ref), data[ref.slug] ?? { ok: false, error: 'Not found on CurseForge' });
+	} catch (error) {
+		for (const ref of unique) out.set(dataKey(ref), { ok: false, error: error instanceof Error ? error.message : 'CurseForge failed' });
+	}
+	return out;
+}
+
+async function curseforgeById(ids: string[]): Promise<Map<string, ProjectData>> {
+	const numeric = ids.map((id) => Number(id.replace(/^cf:/, ''))).filter(Number.isInteger);
+	if (numeric.length === 0) return new Map();
+	const response = await fetch('/api/curseforge/projects', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ slugs: [], ids: numeric })
+	});
+	if (!response.ok) return new Map();
+	return new Map(Object.entries((await response.json()) as Record<string, ProjectData>));
+}
+
+async function loadModrinth(slugs: string[], force: boolean, onDone: () => void): Promise<Map<string, ProjectData>> {
 	// Slugs from URLs may also be project IDs, which are case-sensitive, so request them as written.
 	// Results are keyed by lowercase slug, which is how the matrix looks them up.
 	const keys = [...new Set(slugs)];
 	const result = new Map<string, ProjectData>();
-	const progress = { done: 0, total: keys.length };
-	options.onProgress?.({ ...progress });
+	if (keys.length === 0) return result;
+	const options = { force };
 
 	let projects: Map<string, ModrinthProject>;
 	try {
 		projects = await getProjectsByKey(keys, options.force ?? false);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : 'Failed to load';
-		for (const key of keys) result.set(key.toLowerCase(), { ok: false, error: message });
-		options.onProgress?.({ done: keys.length, total: keys.length });
+		for (const key of keys) {
+			result.set(key.toLowerCase(), { ok: false, error: message });
+			onDone();
+		}
 		return result;
 	}
 
@@ -253,8 +315,7 @@ export async function loadProjects(
 			} catch (error) {
 				result.set(key.toLowerCase(), { ok: false, error: error instanceof Error ? error.message : 'Failed to load' });
 			} finally {
-				progress.done++;
-				options.onProgress?.({ ...progress });
+				onDone();
 			}
 		})
 	);
@@ -262,14 +323,42 @@ export async function loadProjects(
 	return result;
 }
 
+/** CurseForge projects (IDs starting "cf:") are looked up through the server; the rest on Modrinth. */
 export const dependencyApi: DependencyApi = {
 	async getProjects(ids) {
-		const projects = await getProjectsByKey(ids, false);
-		return ids.map((id) => projects.get(id)).filter((p): p is ModrinthProject => !!p);
+		const cfIds = ids.filter((id) => id.startsWith('cf:'));
+		const modrinthIds = ids.filter((id) => !id.startsWith('cf:'));
+		const [projects, cf] = await Promise.all([getProjectsByKey(modrinthIds, false), curseforgeById(cfIds)]);
+		return ids
+			.map((id) => {
+				if (!id.startsWith('cf:')) return projects.get(id);
+				const data = cf.get(id);
+				return data?.ok ? data.project : undefined;
+			})
+			.filter((p): p is ModrinthProject => !!p);
 	},
-	getVersions,
-	getProjectVersions: (projectId) => getProjectVersions(projectId)
+	// CurseForge dependencies never pin a version, so only Modrinth IDs reach this.
+	getVersions: (ids) => getVersions(ids.filter((id) => !id.startsWith('cf:'))),
+	async getProjectVersions(projectId) {
+		if (!projectId.startsWith('cf:')) return getProjectVersions(projectId);
+		const data = (await curseforgeById([projectId])).get(projectId);
+		return data?.ok ? data.versions : [];
+	}
 };
+
+/** CurseForge project info for the editor, keyed by dataKey(). */
+export async function getCurseforgeMeta(refs: ProjectRef[]): Promise<Map<string, ModrinthProject>> {
+	const data = await loadCurseforgeRefs(refs);
+	return new Map([...data].flatMap(([key, value]) => (value.ok ? [[key, value.project] as const] : [])));
+}
+
+export async function searchCurseforge(query: string, projectType: string, loader: string | null): Promise<SearchHit[]> {
+	const params = new URLSearchParams({ q: query, type: projectType });
+	if (loader) params.set('loader', loader);
+	const response = await fetch(`/api/curseforge/search?${params}`);
+	if (!response.ok) throw new Error(response.status === 401 ? 'Sign in to search CurseForge' : `CurseForge error ${response.status}`);
+	return response.json();
+}
 
 /** Project info only (no versions), for showing names and icons in the editor. */
 export async function getProjectsMeta(slugs: string[]): Promise<Map<string, ModrinthProject>> {
@@ -299,4 +388,18 @@ export async function searchProjects(query: string, projectType: string, loader:
 	const params = new URLSearchParams({ query, limit: '12', facets: JSON.stringify(facets) });
 	const result = await request<{ hits: SearchHit[] }>(`/search?${params}`);
 	return result.hits;
+}
+
+/** Identifies files by SHA-1 (POST /version_files). Hashes Modrinth doesn't know are left out. */
+export async function versionsByHash(sha1s: string[]): Promise<Map<string, ModrinthVersion>> {
+	const found = new Map<string, ModrinthVersion>();
+	for (const batch of chunks([...new Set(sha1s)], BATCH_SIZE)) {
+		const result = await request<Record<string, ModrinthVersion>>('/version_files', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ hashes: batch, algorithm: 'sha1' })
+		});
+		for (const [hash, version] of Object.entries(result)) found.set(hash, slimVersion(version));
+	}
+	return found;
 }

@@ -15,13 +15,17 @@ export type SideMode = 'auto' | 'fallback' | 'force';
 
 export type Pack = 'client' | 'server';
 
+export type Platform = 'modrinth' | 'curseforge';
+
 export interface Alternative {
-	platform: 'modrinth';
+	platform: Platform;
 	slug: string;
 	/** Path segment from the URL (mod, plugin, shader, ...). Used to build links. */
 	projectType: string;
 	sideMode: SideMode;
 	side?: KnownSide;
+	/** Pinned mod version (version number or version ID): only that version is used. */
+	pin?: string;
 }
 
 /** One row of the matrix: a mod, or several interchangeable mods (an OR-group). */
@@ -108,7 +112,13 @@ export interface GameVersionTag {
 }
 
 export function entryKey(entry: Entry): string {
-	return entry.alternatives.map((alt) => alt.slug).join('|');
+	return entry.alternatives.map((alt) => (alt.platform === 'curseforge' ? `cf:${alt.slug}` : alt.slug)).join('|');
+}
+
+/** Key for fetched project data; a mod can be on both platforms under the same slug. */
+export function dataKey(alternative: Pick<Alternative, 'platform' | 'slug'>): string {
+	const slug = alternative.slug.toLowerCase();
+	return alternative.platform === 'curseforge' ? `cf:${slug}` : slug;
 }
 
 export function emptyContent(): ListContent {

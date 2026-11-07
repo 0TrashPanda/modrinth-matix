@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { searchProjects, type SearchHit } from '#lib/client/modrinth.ts';
+	import { page } from '$app/state';
+	import { searchCurseforge, searchProjects, type SearchHit } from '#lib/client/modrinth.ts';
+	import { cfProjectUrl } from '#lib/core/curseforge.ts';
 
 	interface Props {
 		loader: string;
@@ -20,6 +22,8 @@
 	];
 
 	let query = $state('');
+	let source = $state<'modrinth' | 'curseforge'>('modrinth');
+	const curseforgeAvailable = $derived(Boolean(page.data.curseforge));
 	let projectType = $state('mod');
 	let loaderOnly = $state(true);
 	let hits = $state<SearchHit[]>([]);
@@ -32,6 +36,7 @@
 		const q = query.trim();
 		const type = projectType;
 		const onlyLoader = loaderOnly ? loader : null;
+		const from = source;
 		if (!q) {
 			hits = [];
 			return;
@@ -41,7 +46,7 @@
 			searching = true;
 			error = null;
 			try {
-				const result = await searchProjects(q, type, onlyLoader);
+				const result = from === 'curseforge' ? await searchCurseforge(q, type, onlyLoader) : await searchProjects(q, type, onlyLoader);
 				if (id === run) hits = result;
 			} catch (err) {
 				if (id === run) error = err instanceof Error ? err.message : 'Search failed';
@@ -69,7 +74,13 @@
 <svelte:window onkeydown={onKeydown} />
 
 <div class="search-panel">
-	<input class="input" type="search" placeholder="Search Modrinth  ( / )" bind:value={query} bind:this={input} />
+	<input class="input" type="search" placeholder="Search {source === 'curseforge' ? 'CurseForge' : 'Modrinth'}  ( / )" bind:value={query} bind:this={input} />
+	{#if curseforgeAvailable}
+		<div class="chips">
+			<button type="button" class="chip" class:on={source === 'modrinth'} onclick={() => (source = 'modrinth')}>Modrinth</button>
+			<button type="button" class="chip" class:on={source === 'curseforge'} onclick={() => (source = 'curseforge')}>CurseForge</button>
+		</div>
+	{/if}
 	<div class="chips">
 		{#each TYPES as type (type.value)}
 			<button type="button" class="chip" class:on={projectType === type.value} onclick={() => (projectType = type.value)}>{type.label}</button>
@@ -87,7 +98,12 @@
 			<div class="result">
 				{#if hit.icon_url}<img class="ico lg" src={hit.icon_url} alt="" loading="lazy" />{:else}<span class="ico lg"></span>{/if}
 				<div>
-					<a class="title" href="https://modrinth.com/{hit.project_type}/{hit.slug}" target="_blank" rel="noopener">{hit.title}</a>
+					<a
+						class="title"
+						href={hit.project_id.startsWith('cf:') ? cfProjectUrl(hit.project_type, hit.slug) : `https://modrinth.com/${hit.project_type}/${hit.slug}`}
+						target="_blank"
+						rel="noopener">{hit.title}</a
+					>
 					<p>{formatDownloads(hit.downloads)} downloads · updated {daysAgo(hit.date_modified)}d ago</p>
 					<div class="row">
 						{#if inList(hit.slug)}

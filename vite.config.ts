@@ -16,8 +16,15 @@ export default defineConfig({
 				directives: {
 					'default-src': ['self'],
 					// Modrinth is called from the browser; jars are fetched from its CDN for zips.
-					'connect-src': ['self', 'https://api.modrinth.com', 'https://cdn.modrinth.com'],
-					'img-src': ['self', 'data:', 'https://cdn.modrinth.com', 'https://*.googleusercontent.com'],
+					// CurseForge metadata goes through the server; its files come from its CDN.
+					'connect-src': [
+						'self',
+						'https://api.modrinth.com',
+						'https://cdn.modrinth.com',
+						'https://edge.forgecdn.net',
+						'https://mediafilez.forgecdn.net'
+					],
+					'img-src': ['self', 'data:', 'https://cdn.modrinth.com', 'https://media.forgecdn.net', 'https://*.googleusercontent.com'],
 					'style-src': ['self', 'unsafe-inline'],
 					'script-src': ['self'],
 					'object-src': ['none'],

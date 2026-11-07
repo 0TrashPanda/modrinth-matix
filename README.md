@@ -8,7 +8,7 @@ The spec is in [docs/spec.html](docs/spec.html) and the design mockups are in [d
 
 SvelteKit 3 (TypeScript) on Node, SQLite via better-sqlite3 + Drizzle, Google sign-in via Arctic, Valibot for validation, idb-keyval for the browser cache and fflate for zips. Requires Node 22.17 or newer.
 
-All Modrinth requests and jar downloads happen in the browser. The server only stores accounts and lists, so it never hits Modrinth's rate limits and never sends jar files over your upload.
+All Modrinth requests and jar downloads happen in the browser. The server only stores accounts and lists, so it never hits Modrinth's rate limits and never sends jar files over your upload. The exceptions are small JSON lookups the browser can't do itself: CurseForge metadata (its API key must stay secret) and Forge loader versions for `.mrpack` export, both cached on the server.
 
 ## Development
 
@@ -81,6 +81,7 @@ docker compose cp app:/data/backup.db ./backup-$(date +%F).db
 | `DATABASE_URL` | SQLite file path (default `data/app.db`) |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google OAuth client. Sign-in is disabled without them |
 | `ADMIN_EMAIL` | Google account that becomes admin without an invite |
+| `CURSEFORGE_API_KEY` | Optional. Enables CurseForge links and search. The key stays on the server: CurseForge metadata is fetched and cached there, while jar downloads still go straight from CurseForge's CDN to the browser |
 | `ORIGIN` | Public URL, required behind a proxy |
 | `ADDRESS_HEADER`, `XFF_DEPTH` | Client IP from nginx, used for rate limiting sign-in |
 

@@ -21,11 +21,12 @@ const contentSchema = v.object({
 				alternatives: v.pipe(
 					v.array(
 						v.object({
-							platform: v.literal('modrinth'),
+							platform: v.picklist(['modrinth', 'curseforge']),
 							slug: v.pipe(v.string(), v.minLength(1), v.maxLength(100)),
 							projectType: v.pipe(v.string(), v.regex(/^[a-z]+$/), v.maxLength(20)),
 							sideMode: v.picklist(['auto', 'fallback', 'force']),
-							side: v.optional(sideSchema)
+							side: v.optional(sideSchema),
+							pin: v.optional(v.pipe(v.string(), v.maxLength(60)))
 						})
 					),
 					v.minLength(1),

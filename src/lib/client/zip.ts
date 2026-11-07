@@ -1,5 +1,5 @@
-import { Zip, ZipPassThrough } from 'fflate';
-import type { ModrinthFile } from '#lib/core/types.ts';
+import { strToU8, unzipSync, Zip, ZipPassThrough, zipSync } from 'fflate';
+import type { PackFile } from '#lib/core/mrpack.ts';
 
 export interface ZipProgress {
 	done: number;
@@ -7,16 +7,16 @@ export interface ZipProgress {
 	bytes: number;
 }
 
-async function sha1Hex(data: Uint8Array): Promise<string> {
+export async function sha1Hex(data: Uint8Array): Promise<string> {
 	const digest = await crypto.subtle.digest('SHA-1', data as Uint8Array<ArrayBuffer>);
 	return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 /**
- * Downloads files straight from Modrinth's CDN into a zip built in the browser,
+ * Downloads files straight from the platform's CDN into a zip built in the browser,
  * so the server never relays jars. Jars are already compressed, so entries are stored.
  */
-export async function buildZip(files: ModrinthFile[], onProgress: (progress: ZipProgress) => void): Promise<Blob> {
+export async function buildZip(files: PackFile[], onProgress: (progress: ZipProgress) => void): Promise<Blob> {
 	const parts: Uint8Array[] = [];
 	const zipped = new Promise<Blob>((resolve, reject) => {
 		const zip = new Zip((error, chunk, final) => {
@@ -34,7 +34,8 @@ export async function buildZip(files: ModrinthFile[], onProgress: (progress: Zip
 			const queue = [...files];
 			await Promise.all(
 				Array.from({ length: Math.min(4, queue.length) }, async () => {
-					for (let file = queue.shift(); file; file = queue.shift()) {
+					for (let item = queue.shift(); item; item = queue.shift()) {
+						const { file, path } = item;
 						const response = await fetch(file.url);
 						if (!response.ok) throw new Error(`Download failed for ${file.filename} (${response.status})`);
 						const data = new Uint8Array(await response.arrayBuffer());
@@ -42,8 +43,8 @@ export async function buildZip(files: ModrinthFile[], onProgress: (progress: Zip
 							throw new Error(`Hash mismatch for ${file.filename}`);
 						}
 
-						let name = file.filename;
-						for (let n = 2; names.has(name); n++) name = `${n}-${file.filename}`;
+						let name = path;
+						for (let n = 2; names.has(name); n++) name = path.replace(/([^/]+)$/, `${n}-$1`);
 						names.add(name);
 
 						const entry = new ZipPassThrough(name);
@@ -60,6 +61,16 @@ export async function buildZip(files: ModrinthFile[], onProgress: (progress: Zip
 		})().catch(reject);
 	});
 	return zipped;
+}
+
+/** A small zip of text files, e.g. an .mrpack's index. */
+export function textZip(files: Record<string, string>, type = 'application/zip'): Blob {
+	const data = zipSync(Object.fromEntries(Object.entries(files).map(([name, text]) => [name, strToU8(text)])));
+	return new Blob([data as BlobPart], { type });
+}
+
+export function readZip(data: Uint8Array): Record<string, Uint8Array> {
+	return unzipSync(data);
 }
 
 export function saveBlob(blob: Blob, filename: string): void {

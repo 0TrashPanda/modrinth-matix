@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { onMount, type Snippet } from 'svelte';
 	import { loadLocal, saveLocal } from '#lib/client/storage.ts';
+	import { importFiles } from '#lib/client/importers.ts';
 	import type { SearchHit } from '#lib/client/modrinth.ts';
 	import { containsSlug } from '#lib/core/edit-ops.ts';
+	import { cfProjectUrl } from '#lib/core/curseforge.ts';
 	import { applyOverrides } from '#lib/core/overrides.ts';
 	import { parseText } from '#lib/core/text-format.ts';
 	import { LOADERS, type ListContent } from '#lib/core/types.ts';
@@ -51,16 +53,40 @@
 	const removalsWithoutBase = $derived(!base && (parsed.content.removals?.length ?? 0) > 0);
 	const hasComments = $derived(/^\s*(#(?!#)|\/\/)/m.test(text));
 
+	let importing = $state(false);
+	let importNote = $state<string | null>(null);
+
+	function append(block: string) {
+		text = text.trim() ? `${text.trimEnd()}\n\n${block}` : block;
+	}
+
 	async function importFile(event: Event & { currentTarget: HTMLInputElement }) {
-		const file = event.currentTarget.files?.[0];
-		if (!file) return;
-		const imported = await file.text();
-		text = text.trim() ? `${text.trimEnd()}\n${imported}` : imported;
-		event.currentTarget.value = '';
+		const input = event.currentTarget;
+		const picked = [...(input.files ?? [])];
+		input.value = '';
+		if (picked.length === 0) return;
+		importing = true;
+		importNote = null;
+		try {
+			const result = await importFiles(picked);
+			for (const block of result.text) append(block);
+			if (result.lines.length > 0) {
+				const source = picked.length === 1 ? picked[0].name : `${picked.length} files`;
+				append([`imported from ${source.replace(/:/g, '')}:`, ...result.lines].join('\n'));
+			}
+			const parts = [];
+			if (result.lines.length) parts.push(`${result.lines.length} mods recognised`);
+			if (result.unknown.length) parts.push(`not on Modrinth: ${result.unknown.join(', ')}`);
+			importNote = parts.join(' · ') || null;
+		} catch (error) {
+			importNote = error instanceof Error ? `Import failed: ${error.message}` : 'Import failed';
+		} finally {
+			importing = false;
+		}
 	}
 
 	function appendFromSearch(hit: SearchHit) {
-		const line = `https://modrinth.com/${hit.project_type}/${hit.slug}`;
+		const line = hit.project_id.startsWith('cf:') ? cfProjectUrl(hit.project_type, hit.slug) : `https://modrinth.com/${hit.project_type}/${hit.slug}`;
 		text = text.trim() ? `${text.trimEnd()}\n${line}` : line;
 	}
 
@@ -98,11 +124,12 @@
 			{parsed.content.entries.length} entries
 		{/if}
 	</span>
-	<label class="btn sm file-btn">
-		Import .txt file
-		<input type="file" accept=".txt,.csv,text/plain" onchange={importFile} />
+	<label class="btn sm file-btn" title="Text lists, .mrpack modpacks, or mod jars (hashed in your browser and looked up on Modrinth)">
+		{importing ? 'Importing…' : 'Import files'}
+		<input type="file" multiple accept=".txt,.csv,.mrpack,.jar,.zip" onchange={importFile} disabled={importing} />
 	</label>
 </div>
+{#if importNote}<div class="muted import-note">{importNote}</div>{/if}
 
 {#if parsed.warnings.length > 0 || preview?.warnings.length || removalsWithoutBase || (mode === 'visual' && hasComments)}
 	<ul class="warnings">
@@ -184,6 +211,10 @@
 	}
 	.file-btn input {
 		display: none;
+	}
+	.import-note {
+		margin: -4px 0 10px;
+		font-size: 0.85rem;
 	}
 	.warnings {
 		margin: 0 0 12px;

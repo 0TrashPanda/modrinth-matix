@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getProjectsMeta } from '#lib/client/modrinth.ts';
+	import { getCurseforgeMeta, getProjectsMeta } from '#lib/client/modrinth.ts';
 	import {
 		addAlternative,
 		addEntry,
@@ -11,13 +11,14 @@
 		removeEntry,
 		removeSection,
 		renameSection,
+		setPin,
 		setSide,
 		splitEntry,
 		updateEntry
 	} from '#lib/core/edit-ops.ts';
 	import { modrinthSide, SIDE_TITLE } from '#lib/core/sides.ts';
 	import { groupBySection, parseText, projectUrl, serializeText } from '#lib/core/text-format.ts';
-	import type { Alternative, Entry, KnownSide, ListContent, ModrinthProject, SideMode } from '#lib/core/types.ts';
+	import { dataKey, type Alternative, type Entry, type KnownSide, type ListContent, type ModrinthProject, type SideMode } from '#lib/core/types.ts';
 	import type { SearchHit } from '#lib/client/modrinth.ts';
 	import ModSearch from './ModSearch.svelte';
 
@@ -49,16 +50,27 @@
 		text = serializeText(next);
 	}
 
-	// Names and icons for the rows; cached in IndexedDB by the Modrinth client.
-	const slugKey = $derived(content.entries.flatMap((entry) => entry.alternatives.map((alt) => alt.slug)).join(','));
+	// Names and icons for the rows, keyed by dataKey(); Modrinth info is cached in IndexedDB.
+	// Keys already looked up aren't retried, so unknown mods don't cause a request loop.
+	const tried = new Set<string>();
+	const missing = $derived(
+		content.entries
+			.flatMap((entry) => entry.alternatives)
+			.filter((alternative) => !meta.has(dataKey(alternative)) && !tried.has(dataKey(alternative)))
+	);
 	$effect(() => {
-		const slugs = slugKey ? slugKey.split(',') : [];
-		const missing = slugs.filter((slug) => !meta.has(slug.toLowerCase()));
-		if (missing.length === 0) return;
+		const refs = missing;
+		if (refs.length === 0) return;
 		const timer = setTimeout(async () => {
+			for (const ref of refs) tried.add(dataKey(ref));
 			try {
-				const found = await getProjectsMeta(missing);
-				meta = new Map([...meta, ...found]);
+				const modrinth = refs.filter((ref) => ref.platform !== 'curseforge');
+				const curseforge = refs.filter((ref) => ref.platform === 'curseforge');
+				const [found, cf] = await Promise.all([
+					modrinth.length ? getProjectsMeta(modrinth.map((ref) => ref.slug)) : new Map<string, ModrinthProject>(),
+					curseforge.length ? getCurseforgeMeta(curseforge) : new Map<string, ModrinthProject>()
+				]);
+				meta = new Map([...meta, ...found, ...cf]);
 			} catch {
 				// Rows fall back to showing the slug.
 			}
@@ -82,7 +94,7 @@
 	const selectedEntry = $derived(selected !== null ? content.entries[selected] : null);
 
 	function title(alternative: Alternative) {
-		return meta.get(alternative.slug.toLowerCase())?.title ?? alternative.slug;
+		return meta.get(dataKey(alternative))?.title ?? alternative.slug;
 	}
 
 	function sideValue(alternative: Alternative) {
@@ -96,13 +108,14 @@
 	}
 
 	function hitToAlternative(hit: SearchHit): Alternative {
-		return { platform: 'modrinth', slug: hit.slug, projectType: hit.project_type, sideMode: 'auto' };
+		const platform = hit.project_id.startsWith('cf:') ? 'curseforge' : 'modrinth';
+		return { platform, slug: hit.slug, projectType: hit.project_type, sideMode: 'auto' };
 	}
 
 	/** A mod Modrinth has no side info for, still on "Auto": it needs a fallback or forced side. */
 	function unknownSide(entry: Entry) {
 		return entry.alternatives.some((alternative) => {
-			const project = meta.get(alternative.slug.toLowerCase());
+			const project = meta.get(dataKey(alternative));
 			return project && alternative.sideMode === 'auto' && modrinthSide(project) === 'unknown';
 		});
 	}
@@ -121,7 +134,7 @@
 
 	// Search results already carry everything a row shows, so skip the lookup.
 	function rememberHit(hit: SearchHit) {
-		meta = new Map(meta).set(hit.slug.toLowerCase(), {
+		meta = new Map(meta).set(dataKey(hitToAlternative(hit)), {
 			id: hit.project_id,
 			slug: hit.slug,
 			title: hit.title,
@@ -247,7 +260,7 @@
 					>
 					<div class="alts">
 						{#each entry.alternatives as alternative, altIndex (alternative.slug)}
-							{@const project = meta.get(alternative.slug.toLowerCase()) ?? null}
+							{@const project = meta.get(dataKey(alternative)) ?? null}
 							{#if altIndex > 0}<div class="or">OR</div>{/if}
 							<div class="alt-row">
 								{#if project?.icon_url}<img class="ico" src={project.icon_url} alt="" loading="lazy" />{:else}<span class="ico"></span>{/if}
@@ -267,6 +280,15 @@
 									<option value="force:server">Always server</option>
 									<option value="force:both">Always both</option>
 								</select>
+								<input
+									class="pin"
+									class:set={alternative.pin}
+									value={alternative.pin ?? ''}
+									placeholder="pin version"
+									title="Pin to a mod version number, e.g. 1.3.2. Leave empty to use the best version."
+									onkeydown={(event) => event.key === 'Enter' && (event.preventDefault(), event.currentTarget.blur())}
+									onchange={(event) => commit(setPin(content, index, alternative.slug, event.currentTarget.value))}
+								/>
 								{#if entry.alternatives.length > 1}
 									<button
 										type="button"
@@ -446,6 +468,20 @@
 	.name {
 		font-weight: 600;
 		color: var(--text);
+	}
+	.pin {
+		width: 96px;
+		padding: 4px 8px;
+		border-radius: 8px;
+		border: 1px dashed var(--line);
+		background: none;
+		font-size: 0.78rem;
+		color: var(--muted);
+	}
+	.pin.set {
+		border-style: solid;
+		border-color: var(--blue-text);
+		color: var(--blue-text);
 	}
 	.or {
 		color: var(--faint);
